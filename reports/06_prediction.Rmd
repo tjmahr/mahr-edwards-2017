@@ -1,0 +1,467 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+output: html_document
+...
+
+```{r prediction-setup, include = FALSE}
+library(knitr)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+opts_chunk$set(
+  echo = FALSE, 
+  message = FALSE, 
+  results = "hide", 
+  warning = FALSE)
+```
+
+```{r prediction-load, message = FALSE}
+library(readr)
+library(dplyr, warn.conflicts = FALSE)
+library(rstanarm)
+library(printy)
+library(stringr)
+
+source("./R/utils.R")
+
+library(yaml)
+
+plotting_details <- yaml.load_file("./reports/_config_plots.yaml")
+colors <- plotting_details$colors
+
+evt_t2_models <- readRDS("./models/03a_evt_gsv_with_t1.rds")
+ppvt_t2_models <- readRDS("./models/03b_ppvt_gsv_with_t1.rds")
+```
+
+```{r loo-version}
+# Recover the version used to fit the model from the session info
+loo_ver <- evt_t2_models$info %>% 
+    getElement("packages") %>% 
+    filter(package == "loo") %>% 
+    getElement("loadedversion")
+```
+
+```{r evt-growth}
+evt_rescale <- make_rescaler(evt_t2_models$data$EVT_GSV_T2)
+sd_evt_t2 <- sd(evt_t2_models$data$EVT_GSV_T2)
+sd_evt_t1 <- sd(evt_t2_models$data$EVT_GSV_T1)
+
+# raw_formatter() used to transform a scaled y value into another scale
+get_evt_effects <- function(model, parameter, raw_formatter = evt_rescale, 
+                            ci_level = .95) {
+  list(
+    model = as.character(formula(model))[3],
+    parameter = parameter,
+    sd_evt = sd_evt_t2,
+    sd = get_coefs(model, parameter) %>% unlist,
+    sd_ci = get_intervals(model, parameter, prob = ci_level) %>% unlist,
+    raw = get_coefs(model, parameter, fun_format = raw_formatter) %>% unlist,
+    raw_ci = posterior_interval(model, ci_level, pars = parameter) %>% 
+      raw_formatter %>% ci_string
+  )
+}
+
+# Get the intercept for the simple T2 ~ T1 model
+exp_intercept <- get_evt_effects(
+  model = evt_t2_models$models$t1, 
+  parameter = "(Intercept)", 
+  # Add the mean back to the scaled intercept
+  raw_formatter = function(xs) evt_rescale(xs, add_mean = TRUE))
+
+ms_exp_r2 <- fast_r2(evt_t2_models$models$t1)
+
+# Raw here returns unit change in y per unit change in x. x is normalized T1
+# EVT, so raw here is change in GSV at T2 per 1-SD change in T1 vocab.
+exp_t1 <- evt_t2_models$models$t1 %>% 
+  get_evt_effects("scale(EVT_GSV_T1)")
+
+# For processing effect, no fancy transformations of x needed
+exp_ot1_ot1 <- evt_t2_models$models$t1_slope %>% 
+  get_evt_effects("scale(ot1)", evt_rescale)
+
+# Compute posterior probability of a positive effect
+positive_ot1 <- evt_t2_models$models$t1_slope %>% 
+  posterior_proportion(~ 0 < `scale(ot1)`) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+null_ot1 <- evt_t2_models$models$t1_slope %>% 
+  posterior_proportion(~  -.05 < `scale(ot1)` & `scale(ot1)` < .05) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+prac_pos_ot1 <- evt_t2_models$models$t1_slope %>% 
+  posterior_proportion(~  .05 < `scale(ot1)`) %>% 
+  round(3) 
+prac_pos_ot1_pcent <- paste0(prac_pos_ot1 * 100, "%")
+
+# For input effect, no fancy transformations of x needed
+exp_input <- evt_t2_models$models$t1_input %>% 
+  get_evt_effects("scale(AWC_Hourly)", evt_rescale)
+
+exp_input_x_slope <- evt_t2_models$models$t1_input_x_slope %>% 
+  get_evt_effects("scale(AWC_Hourly):scale(ot1)", evt_rescale)
+```
+
+```{r ppvt-growth}
+ppvt_rescale <- make_rescaler(ppvt_t2_models$data$PPVT_GSV_T2)
+sd_ppvt_t2 <- sd(ppvt_t2_models$data$PPVT_GSV_T2)
+sd_ppvt_t1 <- sd(ppvt_t2_models$data$PPVT_GSV_T2)
+mean_ppvt <- mean(ppvt_t2_models$data$PPVT_GSV_T2)
+
+# raw_formatter() used to transform a scaled y value into another scale
+get_ppvt_effects <- function(model, parameter, raw_formatter = ppvt_rescale, 
+                             ci_level = .95) {
+  list(
+    model = as.character(formula(model))[3],
+    parameter = parameter,
+    sd_ppvt = sd_ppvt_t2,
+    sd = get_coefs(model, parameter) %>% unlist,
+    sd_ci = get_intervals(model, parameter, prob = ci_level) %>% unlist,
+    raw = get_coefs(model, parameter, fun_format = raw_formatter) %>% unlist,
+    raw_ci = posterior_interval(model, ci_level, pars = parameter) %>% 
+      raw_formatter %>% ci_string
+  )
+}
+
+# Divide by SD of T1 PPVT to get 1-GSV change in T2 per 1-GSV change in T1.
+rec_t1_pt <- get_ppvt_effects(
+  model = ppvt_t2_models$models$t1, 
+  parameter = "scale(PPVT_GSV_T1)", 
+  raw_formatter = function(xs) round(xs * sd_ppvt_t2 / sd_ppvt_t1, 2))
+
+ms_rec_r2 <- fast_r2(ppvt_t2_models$models$t1)
+
+# Processing over and above T1
+summary(ppvt_t2_models$models$t1_slope)
+r2_rec_slope <- fast_r2(ppvt_t2_models$models$t1_slope)
+
+rec_ot1 <- ppvt_t2_models$models$t1_slope %>% 
+  get_ppvt_effects("scale(ot1)")
+
+# Input over and above T1
+summary(ppvt_t2_models$models$t1_input)
+r2_rec_input <- fast_r2(ppvt_t2_models$models$t1_input)
+rec_input <- ppvt_t2_models$models$t1_input %>% 
+  get_ppvt_effects("scale(AWC_Hourly)")
+
+# With input, processing, and t1
+summary(ppvt_t2_models$models$t1_input_slope)
+r2_rec_input_slope <- fast_r2(ppvt_t2_models$models$t1_input_slope)
+
+# Input over and above T1 and Processing
+rec_t1_input_slope_awc <- ppvt_t2_models$models$t1_input_slope %>% 
+  get_ppvt_effects("scale(AWC_Hourly)")
+
+# Processing over and above T1 and Input
+rec_t1_input_slope_ot1 <- ppvt_t2_models$models$t1_input_slope %>% 
+  get_ppvt_effects(parameter = "scale(ot1)")
+
+# Input and Processing interaction
+summary(ppvt_t2_models$models$t1_input_x_slope)
+
+rec_t1_input_slope_inter <- ppvt_t2_models$models$t1_input_x_slope %>% 
+  get_ppvt_effects(parameter = "scale(AWC_Hourly):scale(ot1)")
+```
+
+
+### Vocabulary Growth
+
+We showed above that lexical processing efficiency and language exposure
+predicted vocabulary size one year later. These analyses are not
+adequate models of vocabulary *growth* because they do not account for
+vocabulary size at Time 1. If we think of home language input as a
+treatment variable---as language enrichment interventions do---then the
+analyses above ignored the pretreatment outcome levels.
+
+The following analyses included Time 1 vocabulary size as a covariate so
+that we could model the effects of input and lexical processing. For
+each analysis, we started with a reference model in which we regressed
+vocabulary scores at Time 2 onto Time 1 vocabulary scores. We then added
+other predictors to see whether they had a credible effect *over and
+above* Time 1 vocabulary. These models allow us to examine the
+"value-added" properties of language exposure and lexical processing
+efficiency. The best performing model for each vocabulary type are
+described in detail in the Appendix.
+
+#### Expressive Vocabulary
+
+As expected, there was a strong relationship between Time 1 and Time 2
+expressive vocabularies, `r r2(ms_exp_r2)`. A 1-SD increase vocabulary
+scores at Time 1 predicted a `r exp_t1$sd`-SD increase at Time 2, 95%
+Uncertainty Interval [`r exp_t1$sd_ci`]. There was not a credible
+effect of adult word count, UI [`r exp_input$sd_ci`]. There was no
+longer a 95% credible effect of processing, UI
+[`r exp_ot1_ot1$sd_ci`]. The posterior distribution of the processing
+effect was mostly positive, *P*(0 < `r b_sub("Processing")`) =
+`r positive_ot1`. If we stipulate that values between [0, 0.05] are so
+small that they are *practically equivalent* to 0, then
+`r prac_pos_ot1_pcent` of posterior samples showed a non-null positive
+effect. Therefore, the data *suggests* a positive effect of lexical
+processing on expressive vocabulary growth. There was not a credible
+interaction between input and lexical processing efficiency, UI
+[`r exp_input_x_slope$sd_ci`].
+
+We compared these models and ones reported earlier using the Widely
+Applicable Information Criterion (WAIC; Table 3) computed via the loo R
+package [vers. `r loo_ver`; @loo_paper]. Like other
+information criteria metrics (e.g., AIC or BIC), the WAIC estimates a
+model's predictive accuracy for out-of-sample data, and when comparing
+two models, the one with the lower WAIC is preferred. Because each
+observation independently contributes to the overall WAIC value, the
+WAIC is accompanied by a standard error [@loo_paper] which helps
+quantify the uncertainty around WAIC point values. We also computed
+Akaike weights for WAIC values; these values provide a relative
+weighting or conditional probability estimate for each model
+[@Wagenmakers2004].
+
+```{r evt-model-comparisons, results = "markup"}
+waic_pipeline <- . %>% 
+  mutate(
+    weight = weight %>% fmt_fix_digits(3) %>% fmt_leading_zero(),
+    `WAIC ± SE` = paste(
+      fmt_fix_digits(waic, 1), 
+      fmt_fix_digits(se_waic, 1), 
+      sep = " ± "),
+    Predictors = Predictors %>% str_replace(" x ", " × ")) %>% 
+  select(Predictors,  `WAIC ± SE`, `Akaike Weight` = weight)
+
+df_exp_waic <- readr::read_csv("./models/04a_evt_gsv_compare.csv") %>% 
+  # Skip the rest of the no-T1 models
+  slice(1:6)
+
+df_exp_waic %>% 
+  waic_pipeline() %>% 
+  knitr::kable(align = str_tokenize("lrrr"))
+```
+
+*Table 3.* Model comparisons for expressive vocabulary.
+
+The models that do not include Time 1 vocabulary should be given no
+weight. Of the other models, we prefer the models without language input
+over those that include this predictor. Finally, we assign relatively
+equal weight to the model with just Time 1 vocabulary and the model with
+both lexical processing and Time 1 vocabulary. We would expect these
+models to perform the best on new data. Model comparison therefore
+provided little confirmatory support for a positive effect of lexical
+processing over and above Time 1 vocabulary.
+
+
+#### Receptive Vocabulary
+
+There was a strong relationship between Time 1 and Time 2 receptive
+vocabulary, `r r2(ms_rec_r2)`. A 1-SD increase in vocabulary at Time 1
+predicted a `r rec_t1_pt$sd`-SD increase at Time 2, 95% Uncertainty
+Interval [`r rec_t1_pt$sd_ci`]. There was a positive effect of adult
+word count over and above Time 1 vocabulary such that a 1-SD increase in
+input predicted a `r rec_input$sd`-SD increase in expected vocabulary,
+UI [`r rec_input$sd_ci`], `r r2(r2_rec_input)`. Similarly, a 1-SD
+increase in processing efficiency predicted an increase in receptive
+vocabulary of `r rec_ot1$sd` SD units, UI [`r rec_ot1$sd_ci`],
+`r r2(r2_rec_slope)`.
+
+We also regressed receptive vocabulary onto all three predictors,
+`r r2(r2_rec_input_slope)`. There was a small effect of input over and
+above Time 1 vocabulary and lexical processing,
+`r pretty_eq(b_sub("Input"), rec_t1_input_slope_awc$sd)`, UI
+[`r rec_t1_input_slope_awc$sd_ci`]. There was a moderate effect of
+processing,
+`r pretty_eq(b_sub("Processing"), rec_t1_input_slope_ot1$sd)`, UI
+[`r rec_t1_input_slope_ot1$sd_ci`]. We did not observe a credible
+interaction of input and lexical processing, UI
+[`r rec_t1_input_slope_inter$sd_ci`].
+
+We compared the models using the WAIC (Table 4). We would expect the
+models with Time 1 vocabulary, lexical processing and language input as
+predictors to have to the best predictive accuracy on out-of-sample
+data. The most important variables for reducing WAIC were Time 1
+vocabulary, followed by lexical processing, and lastly language input.
+
+```{r ppvt-model-comparisons, results = "markup"}
+df_rec_waic <- readr::read_csv("./models/04b_ppvt_gsv_compare.csv") %>% 
+  slice(1:6)
+
+df_rec_waic %>% 
+  waic_pipeline() %>% 
+  knitr::kable(align = str_tokenize("lrrr"))
+```
+
+*Table 4.* Model comparisons for receptive vocabulary.
+
+
+#### Receptive-Expressive Differences
+
+Once we took Time 1 vocabulary into account, we observed different
+predictive effects of adult word count and lexical processing for
+expressive versus receptive vocabulary. For expressive vocabulary, input
+no longer had a credible effect, and lexical processing probably had a
+small positive effect but evidence for this effect is limited. In
+contrast, both predictors independently showed positive effects on
+receptive vocabulary, although the processing effect was larger than the
+input effect.
+
+```{r multivariate-setup}
+mv_model_raw <- readr::read_rds("./models/06_both_tests_at_once.rds")
+brms_ver <- mv_model_raw$version$brms
+
+mv_model <- mv_model_raw %>% 
+  as.data.frame() %>%
+  as_tibble() %>%
+  select(
+    starts_with("b_"), 
+    Exp_sigma = `sigma_zEVTGSVT2`, 
+    Rec_sigma = `sigma_zPPVTGSVT2`, 
+    rescor = `rescor__zEVTGSVT2__zPPVTGSVT2`) %>%
+  tibble::rowid_to_column()
+
+names(mv_model) <- names(mv_model) %>%
+  stringr::str_replace_all("_z(PP|E)VT_GSV_T1$", "_Time1") %>%
+  stringr::str_replace_all("_zot1$", "_Processing") %>%
+  stringr::str_replace_all("_zAWC_Hourly$", "_Input") %>%
+  stringr::str_replace_all("_zot1.zAWC_Hourly$", "_InputxProcessing") %>%
+  stringr::str_replace_all("zPPVTGSVT2", "Rec") %>%
+  stringr::str_replace_all("zEVTGSVT2", "Exp") %>%
+  stringr::str_replace_all("b_", "")
+
+# Handle the residual correlations
+rescor <- mv_model$rescor
+
+med_cor <- median(rescor) %>% 
+  fmt_fix_digits(2) %>% 
+  fmt_leading_zero()
+
+ui_cor <- quantile(rescor, c(.025, .975)) %>% 
+  ci_string(fun_format = . %>% fmt_fix_digits(2) %>% fmt_leading_zero())
+
+# Convert to long format and compute differences
+long_df <- mv_model %>%
+  select(-rescor) %>% 
+  tidyr::gather(parameter, value, -rowid) %>%
+  tidyr::separate(parameter, c("test", "parameter")) %>%
+  tidyr::spread(test, value) %>%
+  mutate(`Rec-Exp` = Rec - Exp) %>%
+  tidyr::gather(test, value, -rowid, -parameter)
+
+diffs <- long_df %>% 
+  filter(test == "Rec-Exp") %>% 
+  tidyr::spread(parameter, value)
+
+med_proc_diff <- diffs %>% 
+  pull(Processing) %>% 
+  median() %>% 
+  fmt_fix_digits(2)
+
+med_input_diff <- diffs %>% 
+  pull(Input) %>% 
+  median() %>% 
+  fmt_fix_digits(2)
+
+# Compute posterior probability of a positive effect
+positive_proc <- diffs %>% 
+  posterior_proportion(~ 0 < `Processing`) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+positive_input <- diffs %>% 
+  posterior_proportion(~ 0 < `Input`) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+sig_sub <- function(sub) {
+  x_sub("_&sigma;_", sub)
+}
+```
+
+Based on these analyses alone, however, it would be invalid to claim
+receptive vocabulary was *more* sensitive to child-level factors than
+expressive vocabulary [@SigNotSigFallacy]. To evaluate these
+differences between receptive and expressive vocabulary, we have to
+estimate them. To compare both vocabulary outcomes simultaneously, we
+fit a multivariate regression model using Stan tools from the brms R
+package [vers. `r brms_ver`; @brms]. As above, all
+variables were standardized to have mean 0 and standard deviation 1. We
+regressed Time 2 vocabulary onto Time 1 vocabulary, language input,
+lexical processing and the input-processing interaction for each
+vocabulary type as in preceding analyses. But to join the two outcomes,
+we also modeled the correlation between the residual error terms
+`r sig_sub("Rec")` and `r sig_sub("Exp")`. The error terms were
+moderately correlated, *ρ* = `r med_cor`, UI [`r ui_cor`]. 
+
+```{r multivariate-posterior, fig.width = 5, fig.height = 3}
+library(ggplot2)
+library(ggstance)
+
+final_plot_df <- long_df %>%
+  filter(
+    parameter %in% c("Time1", "Processing", "Input", "InputxProcessing")) %>%
+  mutate(
+    test = factor(test, levels = c("Rec", "Exp", "Rec-Exp")),
+    parameter = factor(
+      parameter, 
+      c("Time1", "Input", "Processing", "InputxProcessing")))
+
+median_hilowh <- function(...) {
+  median_hilow(...) %>% 
+    rename(x = y, xmin = ymin, xmax = ymax)
+}
+
+plot <- ggplot(final_plot_df) +
+  aes(
+    x = value, y = forcats::fct_rev(parameter), 
+    color = forcats::fct_rev(test)) +
+  geom_vline(xintercept = 0, size = 1, color = "grey80") +
+  stat_summaryh(
+    fun.data = median_hilowh, geom = "linerangeh",
+    fun.args = list(.95), size = .75,
+    position = position_dodgev(height = .6)) +
+  stat_summaryh(
+    fun.data = median_hilowh,
+    geom = "linerangeh", fun.args = list(.90), size = 1.75,
+    position = position_dodgev(height = .6),
+    show.legend = FALSE) +
+  stat_summaryh(
+    fun.x = median, geom = "point", size = 3,
+    position = position_dodgev(height = .6)) +
+  labs(
+    x = NULL, y = NULL, color = NULL, shape = NULL,
+    caption = "Intervals: thick 90%, thin 95%. Point: median.") + 
+  viridis::scale_color_viridis(
+    discrete = TRUE,
+    end = .6,
+    breaks = c("Rec", "Exp", "Rec-Exp"),
+    guide = guide_legend(direction = "horizontal"),
+    labels = expression(Rec, Exp, Rec-Exp)) +
+  scale_x_continuous(breaks = c(-.4, -.2, .0, .2, .4, .6, .8)) + 
+  scale_y_discrete(
+    breaks = c("Time1", "Input", "Processing", "InputxProcessing"),
+    labels = c("Time 1", "Input", "Processing", "Input ×\nProcessing"))
+  
+plot +
+  theme_bw() + 
+  theme(
+    legend.justification = c(1.00, 0),
+    legend.position = c(.99, 0.01),
+    legend.key = element_rect(fill = NA),
+    legend.background = element_rect(color = "grey80"),
+    legend.margin = margin(t = 0, b = 0, r = 11/2))
+```
+
+*Figure 5.* Posterior median and 95% and 90% uncertainty intervals for
+the vocabulary effects and effect differences.
+
+The multivariate model maintained the results of the univariate models
+(see Figure 5): Strong effects of Time 1 vocabulary, reliable effects of
+input and processing on receptive vocabulary, and a suggestive effect of
+processing on expressive vocabulary. For each posterior sample, we
+computed the difference between receptive and expressive vocabulary
+coefficients (e.g., `r b_sub("Input[Diff]")` = `r b_sub("Input[Rec]")` −
+`r b_sub("Input[Exp]")`), yielding a distribution of effect differences.
+Input had a stronger effect on receptive vocabulary that expressive
+vocabulary, `r b_sub("Input[Diff]")` = `r med_input_diff`, *P*(0 <
+`r b_sub("Input[Diff]")`) = `r positive_input`. A similar difference was
+observed for lexical processing, `r b_sub("Processing[Diff]")` =
+`r med_proc_diff`, although it was slightly less probable the receptive
+effect was greater than the expressive effect, *P*(0 <
+`r b_sub("Processing[Diff]")`) = `r positive_proc`. Lexical processing
+*probably* had a stronger effect on receptive than expressive
+vocabulary.

@@ -1,0 +1,9 @@
+Research highlights
+------------------------------------------------------------------------
+
+  - We examine how home language input and word recognition efficiency
+    at 28–39 months predict vocabulary size one year later.
+  - Word recognition efficiency does not constrain the effect of home
+    language input on word learning at this age.
+  - Receptive vocabulary is more sensitive to variability in language
+    input and lexical processing than expressive vocabulary.

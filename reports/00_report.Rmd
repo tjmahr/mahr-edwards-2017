@@ -1,0 +1,90 @@
+---
+title: > 
+  Using Language Input and Lexical Processing 
+  to Predict Vocabulary Size
+author: "Tristan Mahr & Jan Edwards"
+date: "March 2018"
+output:
+  github_document: default
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+...
+
+```{r knitr-setup, include = FALSE}
+library(knitr)
+
+# working dir for evaluating code (use project directory)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+set.seed(10292017)
+
+opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  echo = FALSE,
+  message = FALSE,
+  eval = TRUE,
+  warning = FALSE,
+  fig.path = "./assets/figure/",
+  dev = c("png", "pdf"),
+  dpi = 600)
+```
+
+```{r packages}
+# my eye-tracking package github.com/tjmahr/lookr
+library(lookr)
+
+# my string formatter github.com/tjmahr/printy
+library(printy)
+
+# readers
+library(readr)
+library(yaml)
+
+# data-frame tools
+library(dplyr)
+library(tidyr)
+library(broom)
+
+# other tools
+library(stringr)
+
+# output
+library(knitr)
+library(ggplot2)
+```
+
+```{r, child = "01_highlights.Rmd"}
+```
+
+```{r, child = "01_abstract.Rmd"}
+```
+
+```{r, child = "02_intro.Rmd"}
+```
+
+```{r, child = "03_methods.Rmd"}
+```
+
+```{r, child = "04_looks.Rmd"}
+```
+
+```{r, child = "05_regressions.Rmd"}
+```
+
+```{r, child = "06_prediction.Rmd"}
+```
+
+```{r, child = "07_discussion.Rmd"}
+```
+
+```{r, child = "08_acknowledgements.Rmd"}
+```
+
+```{r, child = "08_appendix.Rmd"}
+```
+
+References
+-----------------------------------------------------------------------
+
+<div id = "refs"></div>

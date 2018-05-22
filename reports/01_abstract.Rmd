@@ -1,0 +1,15 @@
+Abstract
+------------------------------------------------------------------------
+
+> Children learn words by listening to caregivers, and the quantity and
+> quality of early language input predict later language development.
+> Recent research suggests that word recognition efficiency may
+> influence the relationship between input and vocabulary growth. We
+> asked whether language input and lexical processing at 28–39 months
+> predicted vocabulary size one year later in 109 preschoolers. Input
+> was measured using adult word counts from LENA recordings. We used the
+> visual world paradigm and measured lexical processing as the rate of
+> change in proportion of looks to target. Regression analysis showed
+> that lexical processing did not constrain the effect of input on
+> vocabulary size. We also found that input and processing were more
+> reliable predictors of receptive than expressive vocabulary growth.

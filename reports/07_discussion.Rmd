@@ -1,0 +1,200 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+...
+
+```{r discussion-setup, include = FALSE}
+library(knitr)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r discussion-data}
+# maternal education counts
+library(dplyr)
+library(yaml)
+medu_counts <- yaml.load_file("./data/screening_facts.yaml") %>% 
+  getElement("medu_counts_with_reliable_et")
+
+medu_counts$total <- sum(unlist(medu_counts))
+d_all <- readr::read_csv("./data/03_input_vocab_eyetracking.csv")
+r_pred <- cor(d_all$ot1, d_all$AWC_Hourly) %>% 
+  printy::fmt_fix_digits(2) %>% 
+  printy::fmt_leading_zero()
+```
+
+Discussion
+-----------------------------------------------------------------------
+
+We asked how lexical processing efficiency and home language input
+predicted vocabulary size one year later in a large sample of
+preschoolers. We measured lexical processing using an eyetracking
+experiment and model-derived estimates of how quickly on average a
+child's gaze shifted to a named image. We measured language input using
+the average number of adult words per hour from LENA recordings, and we
+measured expressive and receptive vocabulary directly using standardized
+tests. We first tested how language input and lexical processing at
+age 3 predicted vocabulary size at age 4 without controlling for age-3
+vocabulary levels. In these *baseline* analyses, both measures reliably
+and independently predicted vocabulary size. The processing effect
+was 2–2.5 times larger in magnitude than the input effect. Lexical
+processing and language input were weakly correlated, *r* = `r r_pred`,
+and there were no credible interaction Processing × Input effects. These
+baseline analyses support the conclusions that lexical processing
+efficiency was a more important predictor of future vocabulary than
+language input and that word recognition efficiency did not constrain
+the beneficial effects of language exposure on future vocabulary size.
+
+We next examined how input and lexical processing related to vocabulary
+*growth*, by controlling for age-3 vocabulary. The best predictors of
+Time 2 expressive vocabulary were Time 1 expressive vocabulary followed
+by lexical processing. The processing effect was less certain and
+smaller in magnitude compared to the robust effects observed in models
+of receptive vocabulary or in the baseline models that did not control
+for Time 1 vocabulary. Comparison of the expressive vocabulary models
+indicated that one should assign approximately equal weight to a model
+with both lexical processing and Time 1 vocabulary and a model with only
+Time 1 vocabulary. In contrast, the best predictors of Time 2 receptive
+vocabulary were Time 1 receptive vocabulary, followed by lexical
+processing and adult word count. Both processing and input provided
+additional predictive information over and above Time 1 vocabulary, and
+lexical processing had a larger effect than hourly adult word count.
+Finally, we estimated the differences in the effects on receptive versus
+expressive vocabulary, and the input effect was larger for receptive
+vocabulary while the processing effect was *probably* larger for
+receptive vocabulary.
+
+The difference in results for expressive versus receptive vocabulary was
+unexpected, given the reliable correlation between the two measures,
+*r* = .81 at ages 2--5 [@PPVT4, p. 60]. Child who heard more words
+from their caregivers could understand more words one year later, but
+they could not necessarily produce more words. Why would language
+exposure be more related to receptive than expressive vocabulary? The
+differences for expressive and receptive vocabulary may simply reflect
+differences in the tests used to measure them. Across the entire course
+of the PPVT-4, the prompt remains the same (*show me X*). But over the
+course of the EVT-2, the prompts change from *what is this* to include
+prompts that demand metalinguistic knowledge (e.g., *tell me another
+word for X*). Thus, it may be the case that the PPVT-4 measures only
+receptive vocabulary, while the EVT-2 measures both expressive
+vocabulary and metalinguistic ability. Lexical processing efficiency and
+language input may be less related to metalinguistic ability than they
+are to vocabulary size.
+
+Alternatively, the different results for expressive and receptive
+vocabulary may reflect the fact that recognition is easier than
+production. Being able to name an object---to activate the word's
+semantic representation and its phonological representation then carry
+out a motor plan---demonstrates a greater sign of mastery than being
+able to associate the word to an appropriate referent. The children who
+heard more words had more experience and exposure to words, giving them
+a broad base of shallow knowledge for word recognition. This
+interpretation would suggest that measures of input diversity (input
+types) would be even more predictive of future receptive vocabulary than
+simple quantity. Support for this interpretation also comes from
+@edwards2014dialect. Using structural equation modeling, they found a
+direct relation between SES and receptive vocabulary, but only an
+indirect relation between SES and expressive vocabulary; the relation
+between SES and expressive vocabulary was mediated by receptive
+vocabulary.
+
+A similar line of reasoning applies to the processing effect. We
+measured processing as response speed during a listening task, not a
+naming task. It captures a child's ability to activate a word's semantic
+representation in a timely manner. These demands are more clearly
+related to our receptive vocabulary task, whereas the expressive
+vocabulary task additionally required the child to talk. Nevertheless,
+we concluded that faster processing *probably* predicted larger
+expressive vocabularies. Approximately, 75% of the posterior samples
+indicated a positive, non-null effect. Naming an object still requires
+activation of a word's lexical representations, so it makes sense that
+the lexical processing efficiency would still matter for expressive
+vocabulary.
+
+Throughout our analysis, we never observed a credible interaction effect
+between lexical processing and language input. Word recognition
+efficiency did not constrain the beneficial effects of language exposure
+on future receptive vocabulary size. One interpretation of these
+findings is that these children were *fast enough* at recognizing words
+that processing did not impose more of a bottleneck on vocabulary
+growth. Developmentally, that bottleneck may be observed in younger
+children than those in this sample. The youngest children in this study
+were 28 months, an age at which the average child produces about 500
+words and recognizes at least 3 times that amount. In contrast, at 18
+months the average child produces only about 50 words and recognizes
+about 250 [@Wordbank]. After about 18 months, children’s vocabularies
+start increasing rapidly. At this point, it may be the case that
+processing efficiency no longer interacts with the quantity of language
+input. More research on children from 18 to 30 months is needed to
+evaluate this claim and to determine the time course of the relation
+among processing efficiency, language input, and vocabulary growth.
+
+Our study elaborated on the work of @Weisleder2013, but differed in
+important ways. Notably, our sample included children who were older in
+age, and we tested these children's vocabularies directly. Additionally,
+we used LENA’s automated measures of adult word count, whereas that
+study used LENA word counts from just the segments of recordings that
+listeners had classified as child-directed. Limitations of our study
+include its observational design and the relatively homogeneous
+demographics of the families. This study was observational, so the
+analyses here describe statistical relationships. We did not manipulate
+language input, so we cannot establish causal links between language
+input and other measures. Moreover, most
+(`r medu_counts$high`/`r medu_counts$total`) children came from high
+maternal-education families (i.e., college or graduate degrees), whereas
+@Weisleder2013 recruited 29 children from low-SES families. The combined
+SES and age differences make it difficult to compare these two studies
+directly. Although most of the participants in our study were
+demographically homogeneous, they varied in language input, vocabulary
+size, and processing efficiency, so they provided an informative test of
+how processing and input predict word learning. We found input and
+processing had positive effects on receptive vocabulary growth, but had
+little influence on expressive vocabulary growth.
+
+Once we controlled for Time 1 vocabulary size, the effects of lexical
+processing and language input became less robust and less certain,
+especially for expressive vocabulary. It is essential that studies about
+changes in vocabulary size obtain a baseline vocabulary measurement. Our
+results were different when we measured predictors of vocabulary size as
+compared to predictors of vocabulary growth. This is not surprising,
+given that individual differences in vocabulary size are observed at 12
+months or even earlier and increase with age. Unlike previous studies,
+this study measured both receptive and expressive vocabulary---if only
+one of these measures had been used as the sole measure of vocabulary
+knowledge, we would have drawn different conclusions.
+
+Our findings have important implications for interventions aimed at
+increasing children’s vocabulary. First and foremost, these
+interventions must start early. At Time 1, children in this study were
+only 28 to 39 months of age. Still, for both receptive and expressive
+vocabulary, vocabulary size at this young age was by far the strongest
+predictor of vocabulary size one year later. Based on our results,
+increasing the quantity of linguistic input for 3-year-olds is not going
+to be an effective intervention strategy. Other research has suggested
+that children attend to different features of their ambient language as
+their language abilities develop [@Rowe2012_Long; cf. review in
+@Lidz2015]. For children of this age, sheer quantity of language input
+may not be as relevant or predictive as complexity or other features of
+the child-directed speech. The lack of evidence for quantity effects
+does not imply that quality is any more important or predictive of
+vocabulary growth at this age, but it suggests that measures like adult
+word count provide only a first approximation about the number of
+informative examples and learning opportunities available to the child.
+Language stimulation benchmarks and goals for children of this age, we
+would conclude, are better framed as time spent on activities, such as
+shared-book reading, or discussing events outside of the here and now
+[@Rowe2012_Long], rather than focusing simply on increasing language
+input.
+
+These findings add to our understanding for vocabulary development. They
+suggest that the early relations among processing efficiency, input, and
+vocabulary size may decrease as all children become more efficient
+language processors in their third year of life. While differences in
+processing efficiency continue to exist, they may not create the
+bottleneck on vocabulary growth that is observed for children from 18
+to 24 months. They also add to the very large literature supporting
+early intervention---children say their first words at about 12 to 14
+months of age, but differences in vocabulary size even as early as 28
+months are highly predictive of vocabulary growth one year later and are
+far more important than language input or processing efficiency.

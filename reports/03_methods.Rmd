@@ -1,0 +1,126 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+...
+
+```{r methods-setup, include = FALSE}
+library(knitr)
+
+# working dir for evaluating code (use project directory)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+
+opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r methods-data}
+# load yaml bits here
+library(yaml)
+n_counts <- yaml.load_file("./data/screening_facts.yaml")
+n_exc_lenas <- n_counts$inadequate_lenas + n_counts$refused_lena
+```
+
+Methods and Measurements
+------------------------------------------------------------------------
+
+### Participants
+
+We report all measurements and data exclusions following guidelines in
+@OSF_Statement. We examined data from the first two time points of a
+longitudinal study of preschoolers from English-speaking households. At
+Time 1 in the study, the children were 28--39 months old. During Time 1,
+we collected our measures of language input, lexical processing and
+vocabulary. At Time 2, we collected follow-up vocabulary measures when
+the children were 39--52 months old.
+
+A total of `r n_counts$starting` children provided vocabulary,
+processing and input data at Time 1. We excluded `r n_counts$cis`
+children with cochlear implants from the present analysis. We also
+excluded `r n_counts$lts` children identified by parents as
+late-talkers. Of the remaining children, `r n_counts$returned_to_t2`
+provided vocabulary measures at Time 2. As detailed below, we excluded
+`r n_counts$inadequate_lenas + n_counts$refused_lena` children for
+having inadequate home-language recordings and
+`r n_counts$unreliable_et` children for having unreliable eyetracking
+data. A final total of `r n_counts$with_reliable_et` children were used
+in the vocabulary analyses. A small subset of the Time 1 vocabulary and
+eyetracking data (*n* = `r n_counts$in_other_paper`) was previously
+reported in @RWLPaper, which analyzed vocabulary size and concurrent
+lexical processing in a diverse group of participants. All children
+underwent a hearing screening at both time points, and they had normal
+speech, language, and cognitive development according to parent report.
+
+Stimuli were presented in children's home dialect, either Mainstream
+American English (MAE) or African American English (AAE). We made an
+initial guess about what the home dialect was likely to be based on a
+number of factors, including the recruitment source and the child's
+address. For most children, the home dialect was MAE. If we thought the
+home dialect might be AAE, a native AAE speaker who was a fluent
+dialect-shifter was scheduled for the lab visit, and she confirmed the
+home dialect by listening to the caregiver interact with the child
+during the consent procedure at the beginning of the visit. AAE was the
+home dialect for `r n_counts$n_aae_with_reliable_et` of the
+`r n_counts$with_reliable_et` participants.
+
+Several other measurements were collected as part of the longitudinal
+study. They are not analyzed here because we limit attention to only the
+measures relevant for the analysis of input, processing, and vocabulary.
+Other unanalyzed Time 1 tasks were two picture-prompted word-repetition
+tasks [@RealWordRep2008], an eyetracking task with mispronunciations
+of familiar words [@MPPaper], a minimal pair discrimination task
+[based on @ProtoMinPair], a verbal fluency task [WJ-III Retrieval
+Fluency subtest, @WCJ3], a shape stroop task [@Carlson2005], and an
+articulation test [GFTA-2, @GFTA2]. Parents completed the
+*MacArthur-Bates Communicative Development Inventory* [@MBCDI], an
+inventory about executive function [BRIEF-P, @BRIEFP], a survey about
+early literacy practices in the home [@Senechal2006], and a
+demographic survey that included a multiple-choice question on maternal
+education level. A similar test battery was used at Time 2, with the
+addition of new tasks targeting phonological awareness [CTOPP-2,
+@CTOPP2] and speech perception [SAILS task in @Rvachew2006].
+
+
+### Vocabulary
+
+At both time points, children received the *Expressive Vocabulary
+Test, 2^nd^ Edition* [EVT-2, @EVT2] and its receptive counterpart, the
+*Peabody Picture Vocabulary Test, 4^th^ Edition* [PPVT-4, @PPVT4]. In
+the expressive test, children were presented an image and had to name
+it. In the receptive test, children were presented four images and had
+to select a named image. For our analyses, we used growth scale values
+provided by each test; these values transform raw scores (words correct)
+into a scale that grows linearly with age.
+
+
+### Language input
+
+Language input data was collected using a Language Environment Analysis
+(LENA) digital recorder, a small device worn by a child [@LENAAudio].
+The device records all audible sounds for up to 16 hours. The recorder
+and instructions for using it were given to families. We instructed
+families to activate the recorder in the morning and record a typical
+day for the child. LENA software analyzed each recording to generate a
+summary of the child's language environment [@LENAAudio]. The measures
+included 1) hourly word-counts of adult language in the child's
+environment, 2) hourly number of child-adult and adult-child
+conversational turns, 3) hourly proportions of meaningful (nearby)
+speech, distant speech, noise, television/electronics, and silence,
+and 4) hourly number of child vocalizations.
+
+We computed the averages of each of these hourly measurements, excluding
+data from hours recorded after midnight. We computed the duration of the
+remaining before-midnight data in seconds, computing the number of hours
+from the number of seconds. This adjustment corrects for hours where the
+recording started midway through an hour. The average hourly adult word
+count then was the total adult word count in the recording divided by
+the number of hours. Our procedure differed from that of @Weisleder2013:
+That study only used the adult word counts from segments that coders had
+classified as child-directed.
+
+We excluded recordings that might provide unreliable information. We
+excluded `r n_counts$inadequate_lenas` recordings with less than 10
+hours of data recorded before midnight, because such recordings
+undersampled the child's day. LENA software documentation also
+recommends that recordings be at least 10 hours in duration
+[@LENAResearchFoundation2015]. We excluded `r n_counts$refused_lena`
+recording from a child who did not wear the device.

@@ -1,0 +1,56 @@
+# number of draws (lines) to use in a posterior for regression plot
+n_draws: 500
+alpha_level: .1
+draw_color_default: "grey70"
+median_color_default: "grey50"
+
+# end of the scale to use for viridis in categorical plots
+viridis_end: .75
+
+labels:
+  z_awc: "Adult Words per Hour (SDs, T1)"
+  z_ot1: "Processing Efficiency (SDs, T1)"
+
+  t1_ppvt: "Receptive Vocab. (PPVT-4 GSVs, T1)"
+  t2_ppvt: "Receptive Vocab. (PPVT-4 GSVs, T2)"
+  t1_evt: "Expressive Vocab. (EVT-2 GSVs, T1)"
+  t2_evt: "Expressive Vocab. (EVT-2 GSVs, T2)"
+
+  # When comparing different times against each other
+  exp_t1: "Time 1 Expressive (EVT-2 GSVs)"
+  exp_t2: "Time 2 Expressive (EVT-2 GSVs)"
+  rec_t1: "Time 1 Receptive (PPVT-4 GSVs)"
+  rec_t2: "Time 2 Receptive (PPVT-4 GSVs)"
+
+  exp_t1_terse: "Time 1 (EVT-2 GSVs)"
+  exp_t2_terse: "Time 2 (EVT-2 GSVs)"
+  rec_t1_terse: "Time 1 (PPVT-4 GSVs)"
+  rec_t2_terse: "Time 2 (PPVT-4 GSVs)"
+
+  exp_title: "Expressive vocabulary"
+  rec_title: "Receptive vocabulary"
+
+  processing: "Processing"
+
+levels:
+  speed_bins: ["Slower", "Middle", "Faster"]
+  input_bins: ["Less", "Middle", "More"]
+
+# via http://clrs.cc/
+colors:
+  navy: "#001f3f"
+  blue: "#0074D9"
+  aqua: "#7FDBFF"
+  teal: "#39CCCC"
+  olive: "#3D9970"
+  green: "#2ECC40"
+  lime: "#01FF70"
+  yellow: "#FFDC00"
+  orange: "#FF851B"
+  red: "#FF4136"
+  maroon: "#85144b"
+  fuchsia: "#F012BE"
+  purple: "#B10DC9"
+  black: "#111111"
+  gray: "#AAAAAA"
+  silver: "#DDDDDD"

@@ -1,0 +1,176 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+output: github_document
+...
+
+```{r appendix-setup, include = FALSE}
+library(knitr)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r appendix-packages}
+library(dplyr, warn.conflicts = FALSE)
+library(rstanarm)
+library(printy)
+source("./R/utils.R")
+```
+
+```{r appendix-gca-tables}
+load("./models/00_gca.RData")
+
+# Clean up the fixed effect parameter names
+fix_param_names <- . %>%
+  stringr::str_replace("ot(\\d)", "Time^\\1^")  %>%
+  stringr::str_replace(":", " &times; ") %>%
+  stringr::str_replace(".Intercept.", "Constant") %>%
+  stringr::str_replace("Subj", "Child")
+
+# Assemble fixed effects table
+df_fixef <- gca$model %>% 
+  broom::tidy(effects = "fixed") %>% 
+  rename(
+    Parameter = term, Estimate = estimate, SE = std.error, 
+    z = statistic, p = p.value) %>% 
+  mutate(
+    p = fmt_p_value(p), 
+    Parameter = fix_param_names(Parameter)) %>% 
+  mutate_at(vars(Estimate:z), funs(format_fixef_num)) %>% 
+  rename(`_z_` = z, `_p_` = p, ` ` = Parameter)
+
+# Create random effects table
+df_ranef <- gca$model %>% 
+  tidy_ranef_summary() %>% 
+  # Format the numbers
+  mutate_at(vars(vcov, sdcor), funs(format_fixef_num)) %>%
+  mutate_at(vars( -var1, -grp, -vcov, -sdcor), funs(format_cor)) %>%
+  sort_ranef_grps() %>%
+  # Format variable names and group names
+  mutate(
+    var1 = var1 %>% fix_param_names() %>% fmt_replace_na("&nbsp;"),
+    grp = grp %>% replace_same_as_last("&nbsp;") %>% fix_param_names()) %>% 
+  rename(Group = grp, Parameter = var1, Variance = vcov, SD = sdcor)
+
+# Correlation columns need names with characters so that pandoc can align them
+names(df_ranef)[5:8] <- c("Correlations", "&nbsp;", " &nbsp;", "  &nbsp;")
+```
+
+```{r appendix-vocab-tables}
+evt_t2_models <- readRDS("./models/03a_evt_gsv_with_t1.rds")
+ppvt_t2_models <- readRDS("./models/03b_ppvt_gsv_with_t1.rds")
+
+exp_model <- evt_t2_models$models$t1_slope
+rec_model <- ppvt_t2_models$models$t1_input_slope
+
+# How much to round each of the columns
+round_by_2 <- c("mean", "sd", "2.5%", "25%", "50%", "75%", "97.5%", "Rhat")
+
+create_model_table <- . %>% 
+  summary() %>% 
+  as.data.frame() %>% 
+  tibble::rownames_to_column("Parameter") %>% 
+  filter(Parameter != "mean_PPD", Parameter != "log-posterior") %>% 
+  select(-mcse) %>% 
+  purrr:::map_at(.at = round_by_2, .f = ~ fmt_fix_digits(.x, 2)) %>% 
+  as_data_frame() %>% 
+  mutate_at(vars(-Parameter), funs(fmt_minus_sign)) %>% 
+  rename(`_N_~eff~` = n_eff, `_R_~hat~` = Rhat, Mean = mean, SD = sd)
+```
+
+Appendix
+------------------------------------------------------------------------
+
+Data and R scripts to reproduce this manuscript are available online
+`https://github.com/tjmahr/mahr-edwards-2017`. (Exact numbers will not
+reproduce because variability in Monte Carlo sampling.)
+
+### Eyetracking Growth Curve Model
+
+The tables below summarize the parameter point estimates for the
+mixed-effects logistic regression model of eyetracking data. These
+models were fit using maximum likelihood. The lme4 syntax used to fit
+the model was 
+`cbind(Target, Others) ~ t1 + t2 + t3 + (t1 + t2 + t3 | Child)`. Here
+`t1`, `t2` and `t3` are orthogonal polynomials produced by `poly()` but
+rescaled so that `t1` ranges from −.5 to .5.
+
+#### Fixed effects
+
+```{r appendix-gca-fixef, results = "asis"}
+df_fixef %>% 
+  knitr::kable(align = str_tokenize("lrrrr"))
+```
+
+#### Random effects
+
+```{r appendix-gca-ranef, results = "asis"}
+df_ranef %>% 
+  knitr::kable(align = str_tokenize("llrrrrrr"))
+```
+
+### Vocabulary Models
+
+The tables below summarize the posterior distribution of parameters from
+the best-performing models. We obtained 4,000 samples from the posterior
+distribution in each model. Recall that all variables were scaled to
+have mean of 0 and an SD of 1. Two diagnostic measures are included.
+_N_~eff~ estimates the effective number of independent samples from
+the posterior. _R_~hat~ estimates the convergence of the MCMC sampling
+chains; its values should be close to 1.00.
+
+#### Expressive vocabulary
+
+Likelihood: 
+
+ExpTime2~_i_~ &#x223C; _Normal_(_µ_~_i_~, _σ_)  \
+_µ_~_i_~ = _α_ + _β_~1~ExpTime1~_i_~ + _β_~2~Processing~_i_~
+
+Priors: 
+
+_α_ &#x223C; _Normal_(0, 5)  \
+_β_~_j_~ &#x223C; _Normal_(0, 1)  \
+_σ_ &#x223C; _HalfCauchy_(0, 5)
+
+```{r appendix-exp-vocab, results = "asis"}
+exp_model %>% 
+  create_model_table() %>% 
+  mutate(Parameter = create_math_predictors(Parameter, "expressive")) %>% 
+  rename(` ` = Parameter) %>% 
+  knitr::kable(align = str_tokenize("lrrrrrrrrr"))
+```
+
+#### Receptive vocabulary
+
+Likelihood: 
+
+RecTime2~_i_~ &#x223C; _Normal_(_µ_~_i_~, _σ_)  \
+_µ_~_i_~ = _α_ + _β_~1~RecTime1~_i_~ + _β_~2~Input~_i_~ + _β_~3~Processing~_i_~  \
+
+Priors: 
+
+_α_ &#x223C; _Normal_(0, 5)  \
+_β_~_j_~ &#x223C; _Normal_(0, 1)  \
+_σ_ &#x223C; _HalfCauchy_(0, 5)
+
+```{r appendix-rec-vocab, results = "asis"}
+rec_model %>% 
+  create_model_table() %>% 
+  mutate(Parameter = create_math_predictors(Parameter, "receptive")) %>% 
+  rename(` ` = Parameter) %>% 
+  knitr::kable(digits = 2, align = str_tokenize("lrrrrrrrrr"))
+```
+
+### Unreported analyses
+
+In response to peer review feedback, we performed two additional
+versions of the main analyses that controlled for age. One used
+vocabulary standard scores and another residualized age from the
+vocabulary, processing and input measurements. Our inferences remained
+the same in these analyses.
+
+The original submission of this article reported a mediation analysis;
+however, we removed because it did not address our research questions
+and because there was a negligible effect of language input on
+processing efficiency.

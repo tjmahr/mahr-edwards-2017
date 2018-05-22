@@ -1,0 +1,457 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+...
+
+```{r gca-setup, include = FALSE}
+library(knitr)
+
+# working dir for evaluating code (use project directory)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+
+opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r gca-load-data}
+load(file = "./models/00_gca.RData")
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(printy)
+library(readr)
+source("./R/utils.R")
+screening <- yaml::yaml.load_file("./data/screening_facts.yaml")
+et <- screening$eyetracking
+kids_in_analysis <- read_csv("./data/02_narrowed_scores.csv")
+
+lme4_version <- gca$session_info$packages %>% 
+  filter(package == "lme4") %>% 
+  pull(loadedversion) %>% 
+  # lme4 uses "1.1-15", but let's clean that up to 1.1.15
+  gsub("-", ".", x = .)
+```
+
+### Lexical processing
+
+#### Eyetracking procedure
+
+To measure lexical processing, we used the visual world paradigm, an
+experimental procedure that has been used with children and adults
+[e.g., @Allopenna1998; @McMurray2010; @Huang2011; @RWLPaper]. In this
+paradigm, images of objects are presented onscreen followed by a prompt
+to view one of the images. An eyetracker records the participant's gaze
+location over time. By examining how gaze changes in response to speech,
+we study the time course of word recognition. This particular experiment
+was described and analyzed in detail in @RWLPaper.
+
+In this experiment, four photographs of familiar objects appeared on a
+computer display. During a trial, a spoken prompt directed the child to
+view one of the images (e.g., *find the fly*). One image was the target
+(e.g., *fly*). The other distractor images contained a semantically
+related word (*bee*), a phonologically related word (*flag*), and an
+unrelated word (*pen*). Target words were presented in carrier frames
+(*see the* or *find the*). Children heard stimuli that matched their
+home dialect, either MAE or AAE. We recorded the stimuli from two young
+adult female speakers, one a native speaker of MAE and the other a
+native speaker of AAE. As noted above,
+`r screening$n_mae_with_reliable_et` children came from families where
+MAE was spoken at home and received stimuli recorded in MAE;
+`r screening$n_aae_with_reliable_et` children came from families where
+AAE was spoken at home and received stimuli recorded in AAE. In a
+cross-sectional study [@RWLPaper] with an equal number of AAE- and
+MAE-speaking children (*n* = 30 per group), we did not observe
+differences between two dialect versions after controlling for
+child-level variables. Therefore, we combined data from both dialect
+versions in the analysis below.
+
+Children saw 24 unique trials (each with different target words) in an
+experimental block. Each word served as the target word once per block.
+Two blocks of the experiment (each with different trial orderings and
+images) were administered. A Tobii T60XL eyetracker recorded the
+location of a child's gaze on the screen at rate of 60 Hz.
+
+Presentation of carrier/target was gaze-contingent. After 2 s of
+familiarization time with the images in silence, the experiment paused
+to verify that the child's gaze was being tracked. After 300 ms of
+continuous gaze tracking, the trial advanced. Otherwise, if the gaze
+could not be verified after 10 s, the trial advanced. This step ensured
+that for nearly every trial, the gaze was being tracked before playing
+the carrier phrase, or in other words, that the child was ready to hear
+the carrier stimuli. An attention-getter or motivator phrase (e.g.,
+*check it out!*) played 1 s after the end of the target word. Every six
+or seven trials, an animation played onscreen and the experiment briefly
+paused to allow examiners to reposition or coach the child to pay
+attention.
+
+
+#### Data screening
+
+We began with data from `r et$n_td_with_lenas_eyetracking` children with
+Time 1 vocabulary scores, eyetracking data and home-language recordings.
+Data from `r et$n_with_wrong_eyetracking_exp` children had to be
+excluded because of a timing error in the experiment protocol that
+caused the reinforcer phrase to play too early after the target word.
+Before data screening, we performed *deblinking* by interpolating short
+windows of missing data (up to 150 ms) if the child fixated on the same
+image before and after a missing data window. We examined data quality
+in the 2-s window following the onset of the target. A trial was
+considered unreliable if at least `r et$max_missing_data_percent`% of
+the eyetracking data during the 2-s window was missing (offscreen). If
+at least `r et$max_unreliable_trial_proportion`% of trials in a block
+were unreliable, that block was excluded. We excluded
+`r et$total_blocks_dropped` such blocks;
+`r et$n_with_unreliable_eyetracking` children had all their eyetracking
+trials excluded in this way. After block-level screening, we excluded an
+additional `r et$n_addtl_unreliable_trials_dropped` unreliable trials.
+After screening, `r et$n_remaining_trials` reliable trials remained from
+`r et$n_with_reliable_eyetracking` children. Finally, we downsampled our
+data into 50-ms bins, reducing the eyetracking sampling rate from 60 Hz
+to 20 Hz. This procedure smoothed out high-frequency noise by pooling
+together data from adjacent frames.
+
+
+#### Growth curve analysis
+
+A common measure in eyetracking studies of word recognition is an
+*accuracy growth curve* [@Mirman2014]. We compute this growth curve by
+aggregating the number of looks to each image over trials and
+calculating the proportion of looks to the target image at each time
+sample. (We ignored offscreen looks or looks between the images when
+computing this proportion.) The growth curve measures how the
+probability of fixating on the target changes over time. Figure 1
+depicts each participant's raw accuracy growth curve and the overall
+mean of the growth curves. On average, a child had a 25% chance of
+viewing the target image at the onset of the target word and the chance
+of looking to the image increased as the word unfolded and eventually
+plateaued after the word ended.
+
+```{r error-bar-curve, fig.height = 4, fig.width = 6}
+n_model <- n_distinct(gca$data$Subj)
+
+eyetracking <- gca$data %>% 
+  rename(ResearchID = Subj) %>% 
+  semi_join(kids_in_analysis, by = "ResearchID")
+
+y_labeller <- function(x) x %>% fmt_fix_digits(2) %>% fmt_leading_zero()
+
+p <- ggplot(eyetracking) + 
+  aes(x = BinTime, y = Proportion) + 
+  geom_line(aes(group = ResearchID), alpha = .20) +
+  stat_summary(fun.y = mean, geom = "line", size = 1, color = "#111111") + 
+  theme_bw() + 
+  labs(
+    x = "Time after target word onset (ms)", 
+    y = "Proportion of looks to target image") +
+  scale_y_continuous(labels = y_labeller)
+
+p  
+```
+
+*Figure 1.* Spaghetti plot of raw individual accuracy growth curves
+for 109 participants. Each light line represents the observed proportion
+of looks to the target image over time for one participant. The darker
+line represents the average of the growth curves.
+
+We used a mixed-effects logistic regression model to estimate the
+probability of fixating on the target image over time for each
+participant. We fit the model using the lme4 package
+[vers. `r lme4_version`; @lme4] in the R programming
+language (vers. `r getRversion()`). Although our vocabulary analyses use
+data from `r nrow(kids_in_analysis)` participants, we used eyetracking
+data from `r n_model` typically developing participants to fit the
+growth curve model so the data from the
+`r n_model - nrow(kids_in_analysis)` additional participants would
+strengthen the model. See the Appendix for detailed model results.
+
+We modeled time using a cubic orthogonal polynomial. That is, our
+predictors were a constant term, (linear) time^1^, (quadratic) time^2^
+and (cubic) time^3^, and the time terms were scaled and centered so they
+were orthogonal and therefore uncorrelated. Because we used
+transformations of time, the constant did not estimate the predicted
+value at time = 0, but instead it estimated the area under the curve:
+the average log-odds of fixating on the target over the whole window.
+
+```{r gca-fixed-effects}
+library(lme4)
+m <- gca$model
+auc <- fixef(m)["(Intercept)"]
+
+# Amount ot1 units changed over 2000 ms window
+ot1_range <- max(gca$data$ot1) - min(gca$data$ot1)
+
+# Predicted change over window
+delta_window <- fixef(gca$model)["ot1"] * ot1_range
+
+# Predicted bin-to-bin change
+delta_bin <- delta_window / (2000 / 50)
+
+# # derivative of inverse logit
+# (delta_bin * exp(auc)) / ((1 + exp(auc)) ^ 2)
+
+# Or change compare change in estimate
+# prop_change <- plogis(auc + delta_bin) - plogis(auc)
+
+ms_delta_bin <- delta_bin %>% round(3)
+ms_auc <- auc %>% round(3) %>% fmt_minus_sign()
+ms_auc_prop <- plogis(auc) %>% round(2) %>% fmt_leading_zero()
+
+ms_prop_change <- (plogis(delta_bin) - .5) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+prop_change_from_prop <- function(base_prop, delta_logit) {
+  prop_change(qlogis(base_prop), delta_logit)
+}
+
+prop_change <- function(base_logit, delta_logit) {
+  plogis(base_logit + delta_logit) - plogis(base_logit) 
+}
+
+ms_prop_change_25 <- prop_change_from_prop(.25, delta_bin) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+ms_prop_change_50 <- prop_change_from_prop(.50, delta_bin) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+```
+
+The fixed effects of this model estimated an accuracy growth curve for
+an average participant. Of interest were the constant and linear-time
+terms. Because the constant term corresponded to the area under the
+growth curve, the model estimated an average probability of `r ms_auc`
+logits (`r ms_auc_prop` proportion units) over all time samples. The
+linear time term captured the overall steepness of the growth curve.
+Ignoring the quadratic and cubic features of the growth curve, the
+linear term estimated an increase of `r ms_delta_bin` logits per 50 ms.
+At 0 logits (.5 proportion units), where the logistic function is
+steepest, an increase of `r ms_delta_bin` logits corresponds to an
+increase of `r ms_prop_change_50` proportion units. At chance
+performance (.25 proportion units), this effect corresponds to an
+increase of `r ms_prop_change_25` proportion units.
+
+We allowed the constant and time terms to vary randomly within
+participants. These random effects quantified how an individual child's
+growth curve differed from the group average, so they provided measures
+of individual differences in lexical processing. Specifically, the
+constant terms provided a measure of overall accuracy, and the
+linear-time terms provided a measure of processing efficiency.
+
+```{r bin-by-gca-random-modes}
+library(broom)
+library(tidyr)
+
+# Extract by-child growth curve paramters
+m_coefs <- tidy(gca$m, "ran_modes") %>% 
+  tbl_df() %>% 
+  select(-std.error, -group) %>% 
+  spread(term, estimate) %>% 
+  rename(ResearchID = level, Intercept = `(Intercept)`) %>% 
+  semi_join(kids_in_analysis, by = "ResearchID")
+  
+# Compute tertile splits
+d_bin_coef <- m_coefs %>%
+  mutate(
+    AccuracyBin = ntile(Intercept, 3), 
+    SpeedBin = ntile(ot1, 3)) 
+
+# Find by-child change in accuracy for 50 ms change at 0 logits
+d_bin_coef_effects <- d_bin_coef %>% 
+  mutate(
+    InterceptProp = plogis(Intercept),
+    DeltaWindow = ot1 * ot1_range,
+    DeltaBin = DeltaWindow / (2000 / 50))
+
+# Find by-speed-group stats
+group_diffs <- d_bin_coef_effects %>% 
+  group_by(SpeedBin) %>% 
+  summarise(
+    n = n(),
+    MeanIntercept = mean(Intercept),
+    MeanInterceptProp = plogis(MeanIntercept),
+    Meanot1 = mean(ot1),
+    MeanDeltaBin = mean(DeltaBin),
+    Plogis = plogis(MeanDeltaBin) - .5)
+
+# Extract and format numbers
+logit_diffs <- group_diffs %>% 
+  pull(MeanDeltaBin) %>% 
+  round(3)
+
+prop_diffs <- group_diffs %>% 
+  pull(Plogis) %>% 
+  round(3) %>% 
+  fmt_leading_zero()
+
+intercept_logit <- group_diffs %>% 
+  pull(MeanIntercept) %>% 
+  round(2) %>% 
+  fmt_leading_zero() %>% 
+  fmt_minus_sign()
+
+intercept_prop <- group_diffs %>% 
+  pull(MeanInterceptProp) %>% 
+  round(2) %>% 
+  fmt_leading_zero() %>% 
+  fmt_minus_sign()
+```
+
+```{r extra-gca-values}
+# Compute additional statistics about the growth curves
+
+# Remember the bin assignments
+d_bin <- d_bin_coef %>% 
+  select(ResearchID, AccuracyBin, SpeedBin)
+
+# Get fitted growth curves for each child
+d_augment <- augment(gca$m, gca$data) %>% 
+  as_tibble() %>% 
+  select(ResearchID = Subj, BinTime, FittedLogits = .fitted) %>% 
+  inner_join(d_bin, by = "ResearchID") %>% 
+  mutate(FittedProp = plogis(FittedLogits))
+
+# Proportions at various time slices
+at_times <- d_augment %>% 
+  filter(BinTime %in% c(500, 1000, 1500)) %>% 
+  group_by(SpeedBin, BinTime) %>% 
+  summarise(mean = mean(FittedProp))
+
+# Change over inner 1000 ms interval
+inner1000 <- d_augment %>% 
+  group_by(SpeedBin, ResearchID) %>% 
+  summarise(
+    Diff = FittedProp[BinTime == 1500] - FittedProp[BinTime == 500]) %>% 
+  summarise(
+    MeanDiff = mean(Diff),
+    SDDiff = sd(Diff))
+
+innerd <- inner1000 %>% 
+  pull(MeanDiff) %>% 
+  round(2) %>% 
+  fmt_leading_zero() %>% 
+  as.list() %>% 
+  setNames(c("l", "m", "h"))
+
+# Asymptote as median of values at end of curve
+each_asymptote <- d_augment %>% 
+  filter(1500 <= BinTime) %>% 
+  group_by(SpeedBin, ResearchID) %>% 
+  summarise(Asymptote = median(FittedProp)) %>% 
+  ungroup() %>% 
+  left_join(m_coefs, by = "ResearchID")
+
+asymp <- each_asymptote %>%
+  group_by(SpeedBin) %>% 
+  summarise(MeanAsymptote = mean(Asymptote)) %>% 
+  pull(MeanAsymptote) %>% 
+  round(2) %>% 
+  fmt_leading_zero() %>% 
+  as.list() %>% 
+  setNames(c("l", "m", "h"))
+
+# Left asymptotes, out of curiosity
+l_asymptote <- d_augment %>% 
+  filter(BinTime <= 500) %>% 
+  group_by(SpeedBin, ResearchID) %>% 
+  summarise(Asymptote = median(FittedProp)) %>% 
+  ungroup() %>% 
+  left_join(m_coefs, by = "ResearchID") %>%
+  group_by(SpeedBin) %>% 
+  summarise(MeanAsymptote = mean(Asymptote)) %>% 
+  pull(MeanAsymptote) %>% 
+  fmt_fix_digits(2) %>% 
+  fmt_leading_zero() %>% 
+  as.list() %>% 
+  setNames(c("l", "m", "h"))
+
+# Compute a correlation of two vars from inside a dataframe
+pull_cor <- function(df, x1, x2, ...) {
+  x1 <- rlang::enquo(x1)
+  x2 <- rlang::enquo(x2)
+  cor(pull(df, !! x1), pull(df, !! x2), ...)
+}
+
+r_asym_lin <- each_asymptote %>% 
+  pull_cor(Asymptote, ot1) %>% 
+  fmt_fix_digits(2) %>% 
+  fmt_leading_zero()
+
+r_asym_int <- each_asymptote %>% 
+  pull_cor(Asymptote, Intercept) %>%   
+  fmt_fix_digits(2) %>% 
+  fmt_leading_zero()
+```
+
+To visualize model-derived lexical processing measures, we divided the
+`r nrow(kids_in_analysis)` children in the main analysis into thirds
+based on their linear-time coefficients. The faceted plot in Figure 2
+shows growth curves for children with low, middle, and high linear
+trends, and the curves become steeper as the linear trend increases. For
+example, in the interval from 500 to 1,500 ms, each group's average
+proportion of looks to the familiar image increased by `r innerd$l`,
+`r innerd$m` and `r innerd$h`. For children with higher slopes, the
+probability of fixating on the named image increases more quickly over
+time, so these children demonstrate more efficient lexical processing.
+
+```{r gca-model-fits, fig.height = 4, fig.width = 6}
+bin_counts <- d_bin %>% count(SpeedBin) 
+bin_counts <- bin_counts$n %>% 
+  as.list() %>% 
+  setNames(bin_counts$SpeedBin)
+
+facet_labs <- c(
+  `1` = "Slower (%s)" %>% sprintf(bin_counts$`1`), 
+  `2` = "Middle (%s)" %>% sprintf(bin_counts$`2`), 
+  `3` = "Faster (%s)" %>% sprintf(bin_counts$`3`))
+
+d_augment <- d_augment %>% 
+  mutate(SpeedFacet = factor(SpeedBin, labels = facet_labs))
+
+p2 <- ggplot(d_augment) + 
+  aes(x = BinTime, y = FittedProp) + 
+  geom_line(aes(group = ResearchID), alpha = .2) + 
+  facet_grid(~ SpeedFacet) +
+  stat_summary(fun.y = mean, geom = "line", size = 1, color = "#111111") + 
+  theme_bw() +
+  labs(
+    x = "Time after target onset (ms)",
+    y = "Model-fitted proportion of looks to target") + 
+  coord_cartesian(xlim = c(-50, 2050)) + 
+  scale_y_continuous(labels = y_labeller)
+
+correlation <- tidy(gca$model, effects = "ran_pars", scales = "sdcor") %>% 
+  filter(term == "cor_(Intercept).ot1.Subj") %>% 
+  pull(estimate) %>% 
+  round(2) %>% 
+  fmt_leading_zero()
+
+p2
+```
+
+*Figure  2*. Model-fitted accuracy growth curves for participants
+grouped by linear-time coefficients. Participants were divided into
+tertiles. Light lines represent model-estimated growth curves for
+individual children and dark lines represent the average growth curve
+within each facet.
+
+We can also quantify the lexical processing efficiency of each group by
+calculating the average linear-time parameter in each group and
+determining how much the probability increases when the average
+linear-time estimate is added to 0 logits. The predicted increase was
+`r prop_diffs[1]` proportion units per 50 ms for children in the bottom
+group, `r prop_diffs[2]` for children in the middle group, and
+`r prop_diffs[3]` for children in the top group. By this measure, the
+children in the fastest group were more than twice as fast as the
+children in the bottom group.
+
+Accuracy was related to processing efficiency. The by-child constant and
+linear time random effects were moderately correlated, *r* =
+`r correlation`; the children with steeper growth curves looked more to
+the target overall. The groups visualized had average looking
+proportions of `r intercept_prop[1]`, `r intercept_prop[2]`, and
+`r intercept_prop[3]`. Peak accuracy was also related to processing
+efficiency. We computed an asymptote for each child's growth curve as
+the median value from 1,500 to 2,000 ms, and the average asymptote for
+each group was `r asymp$l`, `r asymp$m`, and `r asymp$h`. These
+asymptotes were highly correlated with by-child constant effects, *r* =
+`r r_asym_int`, and linear time effects, *r* = `r r_asym_lin`.

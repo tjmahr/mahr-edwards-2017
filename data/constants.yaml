@@ -1,0 +1,135 @@
+---
+
+# Different numeric codings of medu
+edu_codes:
+  lmh:
+    Less Than High School: 1.0
+    GED: 1.0
+    High School Diploma: 1.0
+    Trade School: 2.0
+    Technical/Associate's Degree: 2.0
+    Technical/Associates Degree: 2.0
+    "Some College (<2 years)": 2.0
+    "Some College (2+ years)": 2.0
+    Some College: 2.0
+    College Degree: 3.0
+    Graduate Degree: 3.0
+  lmhh:
+    Less Than High School: 1.0
+    GED: 1.0
+    High School Diploma: 1.0
+    "Some College (<2 years)": 1.0
+    "Some College (2+ years)": 2.0
+    Some College: 2.0
+    Trade School: 2.0
+    Technical/Associate's Degree: 2.0
+    Technical/Associates Degree: 2.0
+    College Degree: 3.0
+    Graduate Degree: 4.0
+  six_point:
+    Less Than High School: 1.0
+    GED: 2.0
+    High School Diploma: 3.0
+    "Some College (<2 years)": 3.0
+    "Some College (2+ years)": 4.0
+    Some College: 4.0
+    Trade School: 4.0
+    Technical/Associate's Degree: 4.0
+    Technical/Associates Degree: 4.0
+    College Degree: 5.0
+    Graduate Degree: 6.0
+  seven_point:
+    Less Than High School: 1.0
+    GED: 2.0
+    High School Diploma: 3.0
+    "Some College (<2 years)": 4.0
+    "Some College (2+ years)": 5.0
+    Trade School: 5.0
+    Technical/Associate's Degree: 5.0
+    Technical/Associates Degree: 5.0
+    College Degree: 6.0
+    Graduate Degree: 7.0
+
+lena:
+  rules:
+    min_hours: 10
+
+  # 12-hour adult word count percentiles in the LENA norms
+  norms:
+    - {Percentile: 10, Norm: 6003.0}
+    - {Percentile: 20, Norm: 7911.0}
+    - {Percentile: 30, Norm: 9451.0}
+    - {Percentile: 40, Norm: 10875.0}
+    - {Percentile: 50, Norm: 12297.0}
+    - {Percentile: 60, Norm: 13805.0}
+    - {Percentile: 70, Norm: 15516.0}
+    - {Percentile: 80, Norm: 17645.0}
+    - {Percentile: 90, Norm: 20824.0}
+    - {Percentile: 99, Norm: 29428.0}
+
+  # Kids with unreliable LENAs
+  exclude:
+    timepoint1_no_data:
+    - {id: "002L", code: "Missing", reason: ""}
+    - {id: "003L", code: "Refuse", reason: "Wouldn't wear"}
+    - {id: "004L", code: "Tech", reason: "Crashed during upload"}
+    - {id: "013L", code: "Missing", reason: ""}
+    - {id: "017L", code: "Missing", reason: ""}
+    - {id: "026L", code: "Declined", reason: "Family declined"}
+    - {id: "027L", code: "Declined", reason: "Family declined"}
+    - {id: "047L", code: "Declined", reason: "Family declined"}
+    - {id: "048L", code: "Missing", reason: ""}
+    - {id: "050L", code: "Unused", reason: "Returned unused"}
+    - {id: "054L", code: "Missing", reason: ""}
+    - {id: "066L", code: "Declined", reason: "Family declined"}
+    - {id: "068L", code: "Unused", reason: "Returned unused"}
+    - {id: "091L", code: "Etc", reason: "Family dropped out"}
+    - {id: "102L", code: "Missing", reason: ""}
+    - {id: "105L", code: "Missing", reason: ""}
+    - {id: "115L", code: "Missing", reason: ""}
+    - {id: "119L", code: "Tech", reason: "Low battery"}
+
+    timepoint1:
+    - {id: "025L", code: "Pause", reason: "Paused after 10 hours"}
+    - {id: "035L", code: "Pause", reason: "Paused after 09 hours"}
+    - {id: "116L", code: "Refuse", reason: "Wouldn't wear vest. Device placed in same room."}
+
+  missing_notes:
+    timepoint1:
+    - {id: "606L", reason: "Child refused"}
+    - {id: "619L", reason: "Child refused"}
+
+eyetracking:
+  exclude:
+    - {id: "091L", reason: "Dropped from study. Anomalous data."}
+  window: [0, 1995]
+  binwidth: 3
+  max_prop_na: 0.5
+  max_prop_bad_trials: 0.5
+
+kids_in_other_paper:
+  - "013L"
+  - "017L"
+  - "023L"
+  - "024L"
+  - "025L"
+  - "034L"
+  - "035L"
+  - "036L"
+  - "040L"
+  - "046L"
+  - "058L"
+  - "063L"
+  - "066L"
+  - "067L"
+  - "078L"
+  - "084L"
+  - "088L"
+  - "092L"
+  - "640L"
+  - "642L"
+  - "643L"
+  - "652L"
+  - "653L"
+
+...

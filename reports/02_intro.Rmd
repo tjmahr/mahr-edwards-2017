@@ -1,0 +1,205 @@
+---
+bibliography: assets/refs.bib
+csl: assets/apa.csl
+output: github_document
+...
+
+Introduction
+------------------------------------------------------------------------
+
+Vocabulary size is a robust predictor of language development. By
+amassing a large vocabulary of words, children learn morphosyntactic
+regularities [@Marchman1994_Continuity] and develop the phonological
+representations that subserve future reading skills
+[@Walley2003_VocabGrowth]. Early delays in word learning can predict
+subtle group differences in vocabulary, syntax, and verbal memory
+assessment scores in the school-age years [@Rescorla2009], and
+preschool expressive vocabulary and sentence complexity predict literacy
+development [@Scarborough2009Connecting]. Studying individual
+differences in word learning and how these differences emerge can inform
+our understanding of how differences in language ability emerge as well.
+
+What does it take to learn words? In an abstract sense, children are
+word-learning machines, converting language input from caregivers into
+linguistic knowledge and spoken words of their own. In this formulation
+of the problem, children learn words by discovering and extracting
+regularities from their environment. Consequently, we may consider two
+axes that constrain word learning: the teaching environment and the
+child's ability to process and extract information.
+
+There is a well-established literature documenting how environmental
+factors influence language development [@Hoff2006]. In particular, the
+amount of early language input from caregivers predicts language
+development later on [e.g., @HartRisley; @Huttenlocher1991; @Hoff2003;
+@Rowe2012_Long]. In a landmark study, @HartRisley found that children
+from different socioeconomic backgrounds experienced very different
+language environments. Children from higher SES families, compared to
+children from lower SES families, heard more words (tokens) and more
+different words (types) and showed better language outcomes. The
+reported "30 million word gap" in cumulative language input between
+high-SES and low-SES families has become a public health issue and the
+target for high-profile interventions [@Shankar2014].
+
+Although greater language input predicts greater language outcomes,
+there is no reason to think all words are equally informative. Research
+on input "quality" has examined whether some features of language input
+are more important and more informative than others for shaping language
+outcomes. @Hoff2003 found that features of caregivers' speech explained
+word-learning differences in two-year-olds from families with high
+school-educated mothers versus college-educated mothers. In particular,
+SES category explained little variance in vocabulary growth over and
+above caregiver mean-length of utterance, baseline vocabulary size, and
+child birth order. @Hoff2003 concluded that SES influences caregiver
+speech, but it is caregiver speech that drives language learning "by
+providing data to the child's word-learning mechanisms" (p. 1374). In
+this case, data from high-SES families included more word types and
+tokens and longer utterances.
+
+A child's environment predicts language outcomes. Large changes in
+environment, measured by socioeconomic differences, predict group
+differences in the quantity and make-up of child-directed speech. But
+even within SES groups, families vary considerably in measures of
+child-directed speech [@Weisleder2013]. There is also a
+quality-versus-quantity dimension to language input—not all words or
+utterances are equally educational—but language quantity may provide a
+reasonable approximation of the amount of high-quality learning
+experiences available to a child.
+
+We now consider the other axis for word learning: a child's ability to
+process information. Speech perception, segmentation, and recognition
+skills measured in the first year predict vocabulary measures in the
+second and third years [see @Cristia2014_Review for a systematic
+review]. For example, in a conditioned head-turn speech perception
+experiment with 6-month-olds, @Tsao2004 found the number of trials
+needed to reach a criterion performance correlated with expressive
+vocabulary at 24 months (*r* = −.48). In this case, children who needed
+fewer trials to learn a contrast developed larger vocabularies 18 months
+later. @Kuhl2008 found that event-related potentials at 7.5 months
+predicted vocabulary growth such that children who were more sensitive
+to native phonetic contrasts had larger vocabularies at 18 and 24 months
+compared to children who were more sensitive to non-native contrasts.
+Finally, a meta-analysis of six speech segmentation studies by
+@Junge2014 found a median correlation of .33, 95% CI [.17, .48]
+between word segmentation measures and later language outcomes.
+
+Infants who are better at extracting the sounds and shapes of words in
+their ambient language have larger vocabularies in toddlerhood. The
+ability to process words (lexical processing or word recognition) also
+predicts future language outcomes. This kind of processing is commonly
+assessed by eyetracking tasks which measure how quickly and reliably a
+child fixates on an image after hearing its label. In this paradigm,
+short-term and long-term effects have been found between processing and
+later outcomes. @Fernald2012 found that late-talking toddlers with
+faster lexical processing at 18 months were more likely to move into the
+normal range of vocabulary scores by 24 months. @MarchmanFernald2008
+found that accuracy and speed of lexical processing at age two predicted
+language and working memory scores at age eight. @Lany2017 found a
+relationship between speed of lexical processing and novel word learning
+in 18-month-olds and 30-month-olds. Children who were faster at
+recognizing familiar words were also more accurate at recognizing novel
+words in a word-learning task.
+
+Both language environment and ability to process speech can shape
+language outcomes, but only a few longitudinal studies have considered
+how these two factors work together. @Newman2015 examined how language
+input and processing at 7 months predicted vocabulary at 24 months. They
+found that amount of time listening to novel (unfamiliarized) words
+predicted vocabulary size, as did type-token-ratio of caregiver speech
+such that more repetitive speech predicted larger vocabularies. These
+two predictors jointly predicted vocabulary size, but did not
+significantly interact and were weakly correlated. Therefore, they
+concluded the learning environment and the child's processing ability
+supported language development independently.
+
+In eyetracking studies with older children, however, mediating
+relationships have been found between input and lexical processing.
+@Hurtado2008 found that maternal talk at 18 months predicted lexical
+processing speed and vocabulary size at 24 months in 27 Spanish-learning
+children from predominantly low-SES families. Processing speed mediated
+the effect of input on vocabulary size, suggesting that maternal input
+provides practice for processing words and children who are more
+efficient at recognizing words learned more words. Vocabulary size,
+however, also mediated the effect of maternal speech on processing
+speed. Because processing and vocabulary size were measured at the same
+time, it is not clear which mediation path (or both, in some reciprocal
+effect) better explains the data. In short, these the measures are
+interrelated, with maternal input predicting future processing and
+vocabulary outcomes.
+
+In a very similar study, @Weisleder2013 studied 29 Spanish-learning
+children from low-SES families and found that processing and language
+input at 19 months of age predicted vocabulary size at 24 months.
+Lexical processing, however, mediated the effect of input on future
+vocabulary. The authors concluded that increased input affords more
+opportunities to practice recognizing words and that greater processing
+efficiency facilitated word learning. Another important question,
+however, is whether the beneficial effects of language input on later
+vocabulary size are *constrained* by the child's ability to efficiently
+process that input.
+
+Although a body of research shows that processing measures in infancy
+and toddlerhood predict future vocabulary size, it is unclear whether
+this relationship holds in older children, even just beyond toddlerhood.
+Are children who are more efficient at processing language better
+word-learners more generally, or is this relationship observed only at
+the earliest stages of word learning? Children’s vocabularies rapidly
+develop from about 18 months on, with 30-month-olds producing five times
+as many words as 18-month-olds. Furthermore, some of the early
+variability in vocabulary size disappears by preschool age [e.g.,
+@paul1993patterns; @rescorla2000vocabulary]. Failure for this trend to
+hold for preschool children would imply that processing is more critical
+for word learning at younger ages. Perhaps, preschool children have
+accumulated enough practice at recognizing familiar words that a
+processing advantage no longer translates into an advantage in learning
+words.
+
+Additionally, it is not clear how environmental and child-level factors
+will interact in older children. Given the consistent positive
+relationship between language input measures and vocabulary, we would
+expect input quantity to predict vocabulary growth. In @Newman2015,
+input repetitiveness and processing predicted vocabulary size
+independently, whereas in @Weisleder2013 and @Hurtado2008, the role of
+input worked indirectly, as mediated by lexical processing. In an older
+cohort, however, children might be fast enough at recognizing words such
+that input and processing independently predict word learning.
+
+In this study, we examined the same kinds of variables as
+@Weisleder2013: lexical processing, amount of language input, and
+vocabulary size at a future time. Our study, however, involved older
+children (28–39 months at Time 1), and we used tasks appropriate for
+older children. 
+Specifically, we used direct measures of vocabulary at *both* time
+points, and we measured lexical processing using the more demanding
+four-image visual world paradigm rather than the two-image
+looking-while-listening paradigm. Because we have vocabulary measures at
+both time points, we can study how the environmental and child-level
+factors predict *change* in vocabulary, as opposed to future vocabulary
+size. Differences in word-learning trajectories emerge by 18 months
+[e.g., @Wordbank]. @Rowe2012_Pace found that the shape of a child's
+vocabulary growth-curve from 14 to 46 months predicted vocabulary size
+at 54 months, so it is important to factor in a child's prior vocabulary
+when studying how they accumulate new words.
+
+
+### Research Questions
+
+We asked whether language input and lexical processing efficiency at
+age 2 ½–3 predicted vocabulary size one year later. At the heart of the
+matter is whether children who are more efficient at processing language
+are better word-learners. Processing measures in infancy and toddlerhood
+both predict future vocabulary size, and this study asks whether that
+effect still holds in this older cohort.
+
+We also asked how input and processing interacted with each other. One
+possible interaction is a moderating relationship where processing
+efficiency constrains the effect of input on vocabulary growth. This
+outcome would imply that word recognition efficiency is a bottleneck for
+word learning, even at age 3. Alternatively, we might not observe any
+relationships between language input and processing. In this case,
+processing does not constrain a child's ability to learn from ambient
+speech, so that both support word learning independently.
+
+Finally, we asked whether language input and processing predict
+differences in vocabulary growth. Specifically, we asked whether these
+measures are useful predictors of future vocabulary size when
+controlling for concurrent vocabulary size.

@@ -1,0 +1,150 @@
+starting: 172
+cis: 5
+lts: 16
+returned_to_t2: 139
+inadequate_lenas: 3
+refused_lena: 1
+with_adequate_lenas: 135
+with_reliable_et: 109
+n_aae_with_reliable_et: 4
+n_mae_with_reliable_et: 105
+medu_counts_with_reliable_et:
+  high: 92
+  low: 6
+  mid: 11
+unreliable_et: 26
+in_other_paper: 14
+eyetracking:
+  n_td_with_lenas_eyetracking: 151
+  n_with_wrong_eyetracking_exp: 18
+  total_blocks_dropped: 28
+  n_with_reliable_eyetracking: 122
+  n_with_unreliable_eyetracking: 11
+  n_addtl_unreliable_trials_dropped: 712.0
+  n_remaining_trials: 4712
+  model_eligible:
+  - 001L
+  - 006L
+  - 011L
+  - 014L
+  - 016L
+  - 018L
+  - 019L
+  - 020L
+  - 021L
+  - 022L
+  - 023L
+  - 024L
+  - 025L
+  - 029L
+  - 030L
+  - 031L
+  - 032L
+  - 034L
+  - 035L
+  - 036L
+  - 037L
+  - 038L
+  - 039L
+  - 040L
+  - 041L
+  - 042L
+  - 043L
+  - 044L
+  - 046L
+  - 051L
+  - 052L
+  - 053L
+  - 055L
+  - 056L
+  - 057L
+  - 058L
+  - 061L
+  - 062L
+  - 063L
+  - 064L
+  - 067L
+  - 069L
+  - 071L
+  - 072L
+  - 073L
+  - 074L
+  - 075L
+  - 076L
+  - 077L
+  - 078L
+  - 080L
+  - 081L
+  - 082L
+  - 083L
+  - 084L
+  - 086L
+  - 087L
+  - 088L
+  - 090L
+  - 092L
+  - 095L
+  - 096L
+  - 097L
+  - 098L
+  - 099L
+  - 100L
+  - 101L
+  - 103L
+  - 104L
+  - 106L
+  - 107L
+  - 109L
+  - 110L
+  - 111L
+  - 112L
+  - 113L
+  - 116L
+  - 117L
+  - 118L
+  - 119L
+  - 121L
+  - 122L
+  - 124L
+  - 126L
+  - 129L
+  - 130L
+  - 131L
+  - 132L
+  - 133L
+  - 134L
+  - 622L
+  - 623L
+  - 627L
+  - 628L
+  - 629L
+  - 631L
+  - 632L
+  - 633L
+  - 639L
+  - 640L
+  - 641L
+  - 642L
+  - 644L
+  - 652L
+  - 655L
+  - 656L
+  - 657L
+  - 658L
+  - 659L
+  - 660L
+  - 664L
+  - 667L
+  - 668L
+  - 669L
+  - 670L
+  - 673L
+  - 674L
+  - 675L
+  - 677L
+  - 678L
+  - 683L
+  - 689L
+  max_missing_data_percent: 50.0
+  max_unreliable_trial_proportion: 50.0
+

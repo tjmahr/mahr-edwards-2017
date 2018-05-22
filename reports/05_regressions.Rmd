@@ -1,0 +1,577 @@
+---
+csl: assets/apa.csl
+bibliography: assets/refs.bib
+...
+
+```{r regressions-setup, include = FALSE}
+library(knitr)
+wd <- rprojroot::find_rstudio_root_file()
+opts_knit$set(root.dir = wd)
+opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r regressions-load, warning = FALSE}
+library(stringr)
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(cowplot)
+library(tidyr)
+library(rstanarm)
+library(printy)
+theme_set(theme_bw())
+stan_ver <- rstan::stan_version()
+
+source("./R/utils.R")
+source("./R/model_utils.R")
+d_all <- readr::read_csv("./data/03_input_vocab_eyetracking.csv")
+
+# maternal education counts
+medu_counts <- yaml::yaml.load_file("./data/screening_facts.yaml") %>% 
+  getElement("medu_counts_with_reliable_et")
+
+medu_counts$not_high <- sum(unlist(medu_counts)) - medu_counts$high
+
+medu_counts <- yaml::yaml.load_file("./data/screening_facts.yaml") %>% 
+  getElement("medu_counts_with_reliable_et")
+```
+
+```{r descriptive-statistics}
+# Get correlations
+cor1 <- d_all %>%
+  select(
+    `Age (months)` = EVT_Age_T1, 
+    `EVT-2 GSVs` = EVT_GSV_T1, 
+    `PPVT-4 GSVs` = PPVT_GSV_T1, 
+    `Processing efficiency` = ot1,
+    `Hourly adult word count` = AWC_Hourly) %>% 
+  cor() 
+
+fmt_cor <- function(x) {
+  x %>% 
+    fmt_fix_digits(2) %>% 
+    fmt_leading_zero() %>% 
+    fmt_minus_sign()
+}
+
+# Format correlations into a triangular matrix
+clean_values <- apply(cor1, 2, fmt_cor)
+clean_values[upper.tri(clean_values, diag = TRUE)] <- "&nbsp;"
+rownames(clean_values) <- rownames(cor1)
+cor1 <- clean_values[-1, -5]
+
+vocab_long <- d_all %>%
+  select(
+    ResearchID, 
+    Age_x_T1 = EVT_Age_T1, 
+    Age_x_T2 = EVT_Age_T2, 
+    EVT_GSV_T1, EVT_GSV_T2, 
+    EVT_Standard_T1, EVT_Standard_T2, 
+    PPVT_GSV_T1, PPVT_GSV_T2, 
+    PPVT_Standard_T1, PPVT_Standard_T2,
+    AWC_x_T1 = AWC_Hourly) %>% 
+  gather(Score, Value, -ResearchID)  %>%
+  separate(Score, c("Test", "Scale", "Year")) %>%
+  unite(Score, Test, Scale)
+
+
+print_range <- function(xs, na.rm = TRUE, finite = TRUE, formatter = round) {
+  this_range <- formatter(range(xs))
+  sprintf("%s&ndash;%s", this_range[1], this_range[2])
+}
+
+d_vocab_summary <- vocab_long %>%
+  group_by(Score, Year) %>%
+  summarise(
+    nKids = n(),
+    nScores = sum(!is.na(Value)),
+    Mean = mean(Value, na.rm = TRUE),
+    SD = sd(Value, na.rm = TRUE),
+    Min = min(Value, na.rm = TRUE),
+    Max = max(Value, na.rm = TRUE),
+    Range = print_range(Value)) %>%
+  mutate(Group = Year) %>% 
+  ungroup %>% 
+  arrange(Group, Score) %>% 
+  group_by(Group) %>% 
+  mutate(
+    Year = replace_same_as_last(Year, "&nbsp;"),
+    Year = str_replace(Year, "T", "")) %>% 
+  mutate_at(vars(Mean:SD), funs(round(., 1))) %>% 
+  mutate_at(vars(Min:Max), funs(round(.))) %>% 
+  ungroup() %>% 
+  select(Time = Year, Measure = Score, Mean, SD, Range)
+
+d_vocab_summary$Measure <- d_vocab_summary$Measure %>% 
+  str_replace("Age_x", "Age (months)") %>% 
+  str_replace("AWC_x", "Hourly Adult Word Count") %>% 
+  str_replace("EVT_GSV", "Exp. Vocab. (EVT-2 GSVs)") %>% 
+  str_replace("EVT_Standard", "Exp. Vocab. (EVT-2 Standard)") %>% 
+  str_replace("PPVT_GSV", "Rec. Vocab. (PPVT-4 GSVs)") %>% 
+  str_replace("PPVT_Standard", "Rec. Vocab. (PPVT-4 Standard)") 
+
+rec_exp_cor_t1 <- cor(d_all$EVT_GSV_T1, d_all$PPVT_GSV_T1) %>% 
+  round2() %>% 
+  fmt_leading_zero()
+
+rec_exp_cor_t2 <- cor(d_all$EVT_GSV_T2, d_all$PPVT_GSV_T2) %>% 
+  round2() %>% 
+  fmt_leading_zero()
+
+ot1_awc_cor <- cor(d_all$ot1, d_all$AWC_Hourly) %>% 
+  round2() %>% 
+  fmt_leading_zero()
+```
+
+```{r evt-regressions, results = "hide"}
+evt_models <- readRDS("./models/01a_evt_input_proc.rds")
+ot1_models <- readRDS("./models/01c_slope_on_input.rds")
+
+evt_model_list <- evt_models
+preview_model_list(evt_model_list)
+
+evt_models <- evt_models$models
+
+# These are fine as long as the same data-set is used across all models
+evt_rescale <- make_rescaler(d_all$EVT_GSV_T2)
+sd_evt <- sd(d_all$EVT_GSV_T2)
+
+sd_input <- round(sd(d_all$AWC_Hourly))
+mean_input <- round(mean(d_all$AWC_Hourly))
+
+get_evt_effects <- function(model, parameter, raw_formatter = evt_rescale) {
+  list(
+    parameter = parameter,
+    sd_evt = sd_evt,
+    sd = get_coefs(model, parameter) %>% unlist(),
+    sd_ci = get_intervals(model, parameter) %>% unlist(),
+    raw = get_coefs(model, parameter, fun_format = raw_formatter) %>% unlist(),
+    raw_ci = posterior_interval(model, .95, pars = parameter) %>% 
+      raw_formatter() %>% ci_string()
+  )
+}
+
+summary(ot1_models$models$slope_on_input)
+
+r2_ot1_m_a <- fast_r2(ot1_models$models$slope_on_input)
+
+x_to_m <- get_coefs(ot1_models$models$slope_on_input, "scale(AWC_Hourly)") 
+x_to_m_ci <- ot1_models$models$slope_on_input %>% 
+  get_intervals("scale(AWC_Hourly)")
+
+
+summary(evt_models$slope)
+r2_evt_m_b <- fast_r2(evt_models$slope)
+m_to_evt <- get_evt_effects(evt_models$slope, "scale(ot1)")
+
+summary(evt_models$input)
+r2_evt_m_c <- fast_r2(evt_models$input)
+x_to_evt <- get_evt_effects(evt_models$input, "scale(AWC_Hourly)")
+
+summary(evt_models$input_slope)
+r2_evt_m_d <- fast_r2(evt_models$input_slope)
+r2_evt_m_d
+
+x_to_evt2 <- get_evt_effects(evt_models$input_slope, "scale(AWC_Hourly)")
+m_to_evt2 <- get_evt_effects(evt_models$input_slope, "scale(ot1)")
+
+evt_input_proc_int <- evt_models$input_x_slope %>% 
+  get_intervals("scale(AWC_Hourly):scale(ot1)") %>% 
+  unlist()
+
+effect_ratio <- evt_models$input_x_slope %>%
+  as.data.frame() %>%
+  as_tibble() %>%
+  mutate(ratio = `scale(ot1)` / `scale(AWC_Hourly)`) %>%
+  pull(ratio) %>%
+  median() %>%
+  round(3)
+```
+
+```{r plotting-helpers}
+plotting_details <- yaml::yaml.load_file("./reports/_config_plots.yaml")
+
+# number of draws for plots
+n_draws <- plotting_details$n_draws
+model_alpha <- plotting_details$alpha_level
+draw_color_default <- plotting_details$draw_color_default
+median_color_default <- plotting_details$median_color_default
+median_size <- 1.25
+
+theme_posterior <- theme_bw(base_size = 9)
+sub_fig_width <- 2.5
+sub_fig_height <- 3
+
+draw_color_proc <- draw_color_default
+draw_color_evt <- draw_color_default
+draw_color_ppvt <- draw_color_default
+
+med_color_proc <- median_color_default
+med_color_evt <- median_color_default
+med_color_ppvt <- median_color_default
+
+# Multiply coefs by sd(xs) and also add mean(xs) to intercept
+unscale_coefs <- function(df_model, scaler) {
+  df_model %>% 
+    mutate_at(vars(-Intercept), scaler) %>% 
+    mutate(Intercept = scaler(Intercept, add_mean = TRUE))
+}
+
+# (Intercept) -> Intercept
+# scale(predictor) -> zpredictor
+rename_coefs <- function(df_model) {
+  names(df_model) <- names(df_model) %>% 
+    str_replace("[(]Intercept[)]", "Intercept") %>% 
+    str_replace("scale[(](.+)[)]", "z\\1") 
+  df_model
+}
+
+# Create a data-frame with median coefficients
+get_median_coef <- . %>% 
+  coef() %>% 
+  as.list() %>% 
+  as_data_frame()
+
+# Plot the posterior lines of a distribution
+geom_abline_draws <- function(mapping, df_data, draws = n_draws, 
+                              draw_color = draw_color_default, 
+                              draw_alpha = model_alpha) {
+  geom_abline(
+    mapping = mapping,
+    alpha = draw_alpha, 
+    color = draw_color, 
+    data = sample_n(df_data, draws))
+}
+
+# Plot the median line of a distribution
+geom_abline_median <- function(mapping, df_data, med_size = median_size,
+                               med_color = median_color_default) {
+  geom_abline(
+    mapping = mapping, 
+    color = med_color, 
+    size = med_size,
+    data = df_data)
+} 
+```
+
+
+Analyses
+------------------------------------------------------------------------
+
+### Descriptive statistics
+
+Table 1 presents summary statistics. The EVT-2 and PPVT-4 standard
+scores describe a child's ability relative to their age using an IQ-like
+scale (mean = 100, SD = 15). The children in this cohort had vocabulary
+scores approximately 1 SD greater than test-norm averages. Receptive and
+expressive vocabulary growth scale scores were highly correlated at both
+time points, `r x_sub("_r_", "T1")` = `r rec_exp_cor_t1`,
+`r x_sub("_r_", "T2")` = `r rec_exp_cor_t2`. Table 2 presents
+correlations for Time 1 measures. Most (`r medu_counts$high`) of the
+children came from high maternal-education families (i.e., college or
+graduate degrees). Of the remaining `r medu_counts$not_high` children,
+`r medu_counts$mid` came from middle maternal-education families (at
+least two years of college, associate's degree, or trade school degree),
+and `r medu_counts$low` from low maternal-education families (high
+school diploma or less, or less than two years of college).
+
+```{r descriptives-stats-table, results = "asis"}
+knitr::kable(d_vocab_summary, align = str_tokenize("rlrrr"))
+```
+
+*Table 1.* Summary statistics for Time 1 and Time 2 (*N* =
+`r nrow(d_all)`).
+
+
+```{r descriptives-correlation-table, results = "asis"}
+cor1 %>% 
+  as.data.frame() %>% 
+  tibble::rownames_to_column("&nbsp;") %>% 
+  knitr::kable(align = str_tokenize("lrrrr"))
+```
+
+_Table 2._ Correlations among Time 1 measurements.
+
+
+### Regression analyses
+
+We used a Bayesian, estimation-based analytical approach: The aim is to
+estimate the magnitude and direction of effects as well as the
+uncertainty about those effects. In Bayesian models, we update our prior
+information based on the likelihood of the data—in other words, how well
+the data "fit" that prior information. The updated prior information
+constitutes the posterior distribution. Each sample from the posterior
+distribution represented a plausible set of parameters that is
+consistent with the observed data. We used this technique so that we
+could provide 95% uncertainty intervals for the parameter estimates.
+These intervals have an intuitive interpretation: We can be 95% certain
+the "true" value of a parameter, for the given model and data, is
+contained within its 95% uncertainty interval. This feature differs from
+frequentist confidence intervals which do not contain any distributional
+information about a given statistical effect [@Kruschke2017]. Because
+the posterior contains plausible parameter values, we can measure our
+uncertainty about an effect's magnitude and direction. For example, if
+an interval spanned a large positive range, e.g., [3, 24] for some
+IQ-like standard scores, we would conclude that the effect is positive
+but that the size of the effect was very uncertain.
+
+```{r rstanarm-version}
+# Recover the version used to fit the model from the session info
+rstanarm_ver <- evt_model_list$info %>% 
+    getElement("packages") %>% 
+    filter(package == "rstanarm") %>% 
+    getElement("loadedversion")
+```
+
+We fit Bayesian linear regression models using Stan [@stan] via the
+RStanARM package (vers. `r rstanarm_ver`) in R. All predictors and
+outcome measures were scaled to have a mean of 0 and standard deviation
+of 1. We used weakly informative normal distributions as the priors of
+regression parameters: Intercept ~ *Normal*(*µ* = 0 [mean],
+*σ* = 5 [SD]) and Other Effects ~ *Normal*(*µ* = 0, *σ* = 1). This
+prior information implies that before seeing the data, we consider
+negative and positive effects to be equally plausible (*µ*  = 0), and we
+expect 95% of plausible effects to fall between ±1.96. We call this
+distribution "weakly informative" because of disciplinary expectations.
+In child language research, an effect where a 1-SD change in *x*
+predicts a 1-SD change in *y* represents a profound effect. Because our
+prior information generously includes such effects, they are "weakly
+informative".
+
+Hamiltonian Monte Carlo sampling was performed on four chains each with
+1,000 warm-up draws and 1,000 sampling draws, yielding 4,000 total draws
+from the posterior distribution. For all parameters reported, we used
+the median value of the parameter's posterior distribution as its
+"point" estimate. These median parameters values were used to calculate
+*R*^2^ statistics as the conventional, unadjusted ratio of explained
+variance over total variance: *R*^2^ = Var(*ŷ* [fitted]) /
+Var(*y* [observed]).
+
+In all analyses, we used standardized average hourly adult word count as
+our measure of language input, and standardized linear-time coefficients
+(growth curve slopes) as our measure of processing efficiency. There was
+a small positive association between language input and lexical
+processing efficiency at Time 1, `r r2(r2_ot1_m_a)`, such that a 1-SD
+increase in input (an additional `r sd_input` words per hour) predicted
+a `r x_to_m`-SD increase in lexical processing efficiency, 95%
+Uncertainty Interval [`r x_to_m_ci`]. Raw data and scripts to reproduce all 
+analyses are available at https://github.com/tjmahr/mahr-edwards-2017.
+
+
+##### Expressive vocabulary
+
+There was a modest effect of input on expected expressive vocabulary at
+Time 2, `r r2(r2_evt_m_c)`. A 1-SD increase in input predicted an
+increase of vocabulary of `r x_to_evt$sd`-SD units, 95%
+Uncertainty Interval [`r x_to_evt$sd_ci`]. There was a strong effect
+of lexical processing, `r r2(r2_evt_m_b)`. A 1-SD increase in processing
+efficiency predicted an increase in vocabulary of `r m_to_evt$sd`-SD
+units, UI [`r m_to_evt$sd_ci`]. Estimates from each of these models
+are presented in Figure 3.
+
+```{r evt-regression-plots, fig.width = 2 * sub_fig_width, fig.height = sub_fig_height}
+evt_m_b_median <- evt_models$slope %>% 
+  get_median_coef() %>% 
+  rename_coefs() %>% 
+  unscale_coefs(scaler = evt_rescale)
+
+evt_m_b_draws <- as.data.frame(evt_models$slope) %>% 
+  tbl_df() %>% 
+  rename_coefs() %>% 
+  unscale_coefs(scaler = evt_rescale)
+
+p_evt_b <- ggplot(d_all) +
+  aes(x = scale(ot1), y = EVT_GSV_T2) + 
+  geom_abline_draws(
+    aes(intercept = Intercept, slope = zot1), 
+    df_data = evt_m_b_draws, 
+    draw_color = draw_color_evt) +
+  geom_abline_median(
+    aes(intercept = Intercept, slope = zot1), 
+    df_data = evt_m_b_median, 
+    med_color = med_color_evt) +
+  geom_point() + 
+  theme_posterior +
+  labs(x = plotting_details$labels$z_ot1, y = plotting_details$labels$t2_evt)
+
+evt_m_c_median <- evt_models$input %>% 
+  get_median_coef( )%>% 
+  rename_coefs() %>% 
+  unscale_coefs(scaler = evt_rescale)
+
+evt_m_c_draws <- as.data.frame(evt_models$input) %>% 
+  tbl_df() %>% 
+  rename_coefs() %>% 
+  unscale_coefs(scaler = evt_rescale)
+
+p_evt_c <- ggplot(d_all) +
+  aes(x = scale(AWC_Hourly), y = EVT_GSV_T2) + 
+  geom_abline_draws(
+    aes(intercept = Intercept, slope = zAWC_Hourly), 
+    df_data = evt_m_c_draws, 
+    draw_color = draw_color_evt) +
+  geom_abline_median(
+    aes(intercept = Intercept, slope = zAWC_Hourly), 
+    df_data = evt_m_c_median,
+    med_color = med_color_evt) +
+  geom_point() + 
+  theme_posterior +
+  labs(x = plotting_details$labels$z_awc, y = plotting_details$labels$t2_evt)
+
+pg1 <- plot_grid(p_evt_c, p_evt_b, ncol = 2)
+pg1
+```
+
+*Figure 3.* Regression models for expressive vocabulary. The heavy line
+in each plot represents the median of the posterior distribution of the
+model. Light lines represent `r n_draws` random draws from the
+posterior. The lines are included to depict uncertainty of the modeled
+relationship.
+
+We also regressed expressive vocabulary onto input and processing,
+`r r2(r2_evt_m_d)`. We observed a reliable effect of processing: For a
+child with an average amount of language input, a 1-SD increase in
+processing predicted an increase in vocabulary of `r m_to_evt2$sd`
+SD-units, UI [`r m_to_evt2$sd_ci`]. For a child with average
+processing efficiency, however, a 1-SD increase in input predicted a
+`r x_to_evt2$sd`-SD increase in vocabulary size, UI
+[`r x_to_evt2$sd_ci`]. Lexical processing was a stronger predictor of
+vocabulary size than home language input, but there was also a modest,
+positive association between adult word counts and future expressive
+vocabulary size. There was not a credible Processing × Input interaction
+effect. That is, both positive and negative interaction effects were
+plausible, UI [`r evt_input_proc_int`].
+
+
+##### Receptive Vocabulary
+
+```{r ppvt-regressions, results = "hide"}
+ppvt_models <- readRDS("./models/01b_ppvt_input_proc.rds")
+
+ppvt_model_list <- ppvt_models
+preview_model_list(ppvt_model_list)
+
+ppvt_models <- ppvt_models$models
+
+sd_ppvt <- sd(d_all$PPVT_GSV_T2)
+ppvt_rescale <- make_rescaler(d_all$PPVT_GSV_T2)
+
+sd_input <- round(sd(d_all$AWC_Hourly))
+
+get_ppvt_effects <- function(model, parameter) {
+  list(
+    parameter = parameter,
+    sd_ppvt = sd_ppvt,
+    sd = get_coefs(model, parameter) %>% unlist,
+    sd_ci = get_intervals(model, parameter) %>% unlist,
+    raw = get_coefs(model, parameter, fun_format = ppvt_rescale) %>% unlist,
+    raw_ci = posterior_interval(model, .95, pars = parameter) %>% 
+      ppvt_rescale %>% ci_string
+  )
+}
+
+ppvt_m_b <- ppvt_models$slope
+summary(ppvt_m_b)
+r2_ppvt_m_b <- fast_r2(ppvt_m_b)
+
+m_to_ppvt <- get_ppvt_effects(ppvt_m_b, "scale(ot1)")
+
+ppvt_m_c <- ppvt_models$input
+summary(ppvt_m_c)
+r2_ppvt_m_c <- fast_r2(ppvt_m_c)
+
+x_to_ppvt <- get_ppvt_effects(ppvt_m_c, "scale(AWC_Hourly)")
+
+ppvt_m_d <- ppvt_models$input_slope
+summary(ppvt_m_d)
+r2_ppvt_m_d <- fast_r2(ppvt_m_d)
+
+x_to_ppvt2 <- get_ppvt_effects(ppvt_m_d, "scale(AWC_Hourly)")
+m_to_ppvt2 <- get_ppvt_effects(ppvt_m_d, "scale(ot1)")
+
+ppvt_m_e <- ppvt_models$input_x_slope
+summary(ppvt_m_e)
+x_m_ppvt_inter <- get_ppvt_effects(ppvt_m_e, "scale(AWC_Hourly):scale(ot1)")
+```
+
+There was a moderate effect of average hourly adult word count on
+receptive vocabulary size, `r r2(r2_ppvt_m_c)`. A 1-SD increase in input
+(`r sd_input` words per hour) predicted an increase of `r x_to_ppvt$sd`
+SD units, 95% Uncertainty Interval [`r x_to_ppvt$sd_ci`]. There was a
+strong effect of lexical processing efficiency, `r r2(r2_ppvt_m_b)`.
+A 1-SD increase in processing efficiency predicted an increase in
+vocabulary of `r m_to_ppvt$sd` SD units, UI [`r m_to_ppvt$sd_ci`].
+Estimates from each model are depicted in Figure 4.
+
+We also regressed vocabulary onto input and processing efficiency. Both
+predictors were associated with vocabulary size, `r r2(r2_ppvt_m_d)`.
+There was a strong effect of processing,
+`r pretty_eq(b_sub("proc"), m_to_ppvt2$sd)` SD units, UI
+[`r m_to_ppvt2$sd_ci`], whereas there was a modest effect of input,
+`r pretty_eq(b_sub("input"), x_to_ppvt2$sd)`, UI
+[`r x_to_ppvt2$sd_ci`]. Because both input and processing showed
+positive effects, we also tested whether processing moderated the effect
+of input. There was not a credible Processing × Input interaction
+effect, UI [`r x_m_ppvt_inter$sd_ci`]. These results indicate that
+lexical processing was a more robust predictor of future receptive
+vocabulary than average hourly adult word count, and also that adult
+word count had a positive effect on vocabulary over and above lexical
+processing ability.
+
+```{r ppvt-regressions-plots, fig.width = 2 * sub_fig_width, fig.height = sub_fig_height}
+ppvt_m_b_median <- ppvt_m_b %>% 
+  get_median_coef %>% 
+  rename_coefs %>% 
+  unscale_coefs(ppvt_rescale)
+
+ppvt_m_b_draws <- as.data.frame(ppvt_m_b) %>% 
+  tbl_df %>% 
+  rename_coefs %>% 
+  unscale_coefs(ppvt_rescale)
+
+p_ppvt_b <- ggplot(d_all) +
+  aes(x = scale(ot1), y = PPVT_GSV_T2) + 
+  geom_abline_draws(
+    aes(intercept = Intercept, slope = zot1), 
+    df_data = ppvt_m_b_draws, 
+    draw_color = draw_color_ppvt) +
+  geom_abline_median(
+    aes(intercept = Intercept, slope = zot1), 
+    df_data = ppvt_m_b_median, 
+    med_color = med_color_ppvt) +
+  geom_point() + 
+  theme_posterior +  
+  labs(x = plotting_details$labels$z_ot1, y = plotting_details$labels$t2_ppvt)
+
+ppvt_m_c_median <- ppvt_m_c %>% 
+  get_median_coef %>% 
+  rename_coefs %>% 
+  unscale_coefs(ppvt_rescale)
+
+ppvt_m_c_draws <- as.data.frame(ppvt_m_c) %>% 
+  tbl_df %>% 
+  rename_coefs %>% 
+  unscale_coefs(ppvt_rescale)
+
+p_ppvt_c <- ggplot(d_all) +
+  aes(x = scale(AWC_Hourly), y = PPVT_GSV_T2) + 
+  geom_abline_draws(
+    aes(intercept = Intercept, slope = zAWC_Hourly), 
+    df_data = ppvt_m_c_draws,
+    draw_color = draw_color_ppvt) +
+  geom_abline_median(
+    aes(intercept = Intercept, slope = zAWC_Hourly), 
+    df_data = ppvt_m_c_median,
+    med_color = med_color_ppvt) +
+  geom_point() + 
+  theme_posterior + 
+  labs(x = plotting_details$labels$z_awc, y = plotting_details$labels$t2_ppvt)
+
+pg2 <- plot_grid(p_ppvt_c, p_ppvt_b, ncol = 2)
+pg2
+```
+
+*Figure 4.* Regression models for receptive vocabulary. The heavy line
+in each plot represents the median of the posterior distribution of the
+model. Light lines represent `r n_draws` random draws from the
+posterior. The lines are included to depict uncertainty of the modeled
+relationship.
